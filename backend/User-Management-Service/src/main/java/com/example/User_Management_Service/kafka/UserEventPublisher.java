@@ -1,7 +1,6 @@
 package com.example.User_Management_Service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -13,7 +12,7 @@ import java.time.LocalDateTime;
 public class UserEventPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    private final ObjectMapper objectMapper;
 
     public void publishUserRegistered(String userId, String role) {
         publish(KafkaTopicConfig.USER_REGISTERED, new UserEvent(
