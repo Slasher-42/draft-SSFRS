@@ -1,26 +1,63 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-base:        #0d1117;
+  --bg-surface:     #13181f;
+  --bg-elevated:    #1a2030;
+  --bg-overlay:     #1f2736;
+  --bg-subtle:      #252e40;
+
+  --border-faint:   rgba(255,255,255,0.06);
+  --border-light:   rgba(255,255,255,0.10);
+  --border-medium:  rgba(255,255,255,0.16);
+
+  --text-primary:   #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted:     #484f58;
+
+  --accent:         #2f81f7;
+  --accent-hover:   #58a6ff;
+  --accent-muted:   rgba(47,129,247,0.12);
+  --accent-border:  rgba(47,129,247,0.30);
+
+  --success:        #3fb950;
+  --success-muted:  rgba(63,185,80,0.12);
+  --warn:           #d29922;
+  --warn-muted:     rgba(210,153,34,0.12);
+  --danger:         #f85149;
+  --danger-muted:   rgba(248,81,73,0.12);
+  --info:           #58a6ff;
+  --info-muted:     rgba(88,166,255,0.12);
+
+  --sidebar-width:  248px;
+  --header-height:  60px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'DM Sans', sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-overlay); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bg-subtle); }
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.font-mono { font-family: 'DM Mono', monospace; }
