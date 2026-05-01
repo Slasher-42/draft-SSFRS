@@ -1,0 +1,2 @@
+cd ssfrs-frontend
+npm install axios react-hook-form @hookform/resolvers zod react-toastify lucide-react framer-motion
