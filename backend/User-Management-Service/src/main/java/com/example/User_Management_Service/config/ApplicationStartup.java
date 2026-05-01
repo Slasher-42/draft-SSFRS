@@ -19,17 +19,16 @@ public class ApplicationStartup {
     @Bean
     public CommandLineRunner seedAdmin() {
         return args -> {
-            if (userRepository.findAllByRole(Role.ADMIN).isEmpty()) {
-                User admin = User.builder()
-                        .fullName("System Admin")
-                        .email("admin@system.com")
-                        .password(passwordEncoder.encode("Admin@1234"))
-                        .phone("0000000000")
+            if (!userRepository.existsByEmail("cedrickngabo03@gmail.com")) {
+                userRepository.save(User.builder()
+                        .fullName("Cedrick Ngabonziza Kennedy")
+                        .email("cedrickngabo03@gmail.com")
+                        .password(passwordEncoder.encode("Novemba@42"))
+                        .phone("+250788000001")
                         .role(Role.ADMIN)
                         .active(true)
                         .locked(false)
-                        .build();
-                userRepository.save(admin);
+                        .build());
             }
         };
     }
