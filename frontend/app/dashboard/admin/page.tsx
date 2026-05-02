@@ -1,141 +1,151 @@
-
 "use client";
 
-import Header from "@/components/Header";
+import { motion } from "framer-motion";
+import { Users, FolderOpen, AlertCircle, Receipt } from "lucide-react";
+import DashboardLayout from "@/components/DashboardLayout";
 
 const stats = [
-  { label: "Total Users",        value: "—", sub: "Registered accounts",  color: "var(--accent)"  },
-  { label: "Active Projects",    value: "—", sub: "Currently assigned",   color: "var(--success)" },
-  { label: "Open Claims",        value: "—", sub: "Pending review",       color: "var(--warn)"    },
-  { label: "Refunds Processed",  value: "—", sub: "This month",           color: "var(--info)"    },
+  {
+    label: "Total Users",
+    value: "—",
+    sub: "Registered accounts",
+    icon: <Users className="h-5 w-5" style={{ color: "var(--color-primary)" }} />,
+  },
+  {
+    label: "Total Projects",
+    value: "—",
+    sub: "All posted projects",
+    icon: <FolderOpen className="h-5 w-5" style={{ color: "var(--color-primary)" }} />,
+  },
+  {
+    label: "Total Claims",
+    value: "—",
+    sub: "Pending review",
+    icon: <AlertCircle className="h-5 w-5" style={{ color: "var(--color-primary)" }} />,
+  },
+  {
+    label: "Refunds Processed",
+    value: "—",
+    sub: "This month",
+    icon: <Receipt className="h-5 w-5" style={{ color: "var(--color-primary)" }} />,
+  },
 ];
 
 export default function AdminOverviewPage() {
   return (
-    <>
-      <Header
-        title="Admin Overview"
-        subtitle="System-wide summary and controls"
-      />
-      <div style={{ padding: "28px", flex: 1 }}>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h3 style={{ color: "var(--color-primary-800)" }}>Admin Overview</h3>
+          <p
+            className="text-sm mt-1"
+            style={{ color: "var(--color-muted-foreground)" }}
+          >
+            System-wide summary and controls.
+          </p>
+        </div>
 
-        {/* ── Stat cards ── */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "14px",
-            marginBottom: "28px",
-          }}
-        >
-          {stats.map((s) => (
-            <div
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {stats.map((s, index) => (
+            <motion.div
               key={s.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="rounded-xl border p-5"
               style={{
-                background: "var(--bg-surface)",
-                border: "1px solid var(--border-faint)",
-                borderRadius: "10px",
-                padding: "18px 20px",
-                position: "relative",
-                overflow: "hidden",
+                backgroundColor: "var(--color-card)",
+                borderColor: "var(--color-border)",
               }}
             >
-              {/* Coloured top bar */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0, left: 0, right: 0,
-                  height: "2px",
-                  background: s.color,
-                  opacity: 0.7,
-                }}
-              />
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: "var(--text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  marginBottom: "8px",
-                }}
-              >
-                {s.label}
+              <div className="flex items-start justify-between">
+                <div>
+                  <p
+                    className="text-sm"
+                    style={{ color: "var(--color-muted-foreground)" }}
+                  >
+                    {s.label}
+                  </p>
+                  <p
+                    className="text-3xl font-bold mt-1"
+                    style={{ color: "var(--color-foreground)" }}
+                  >
+                    {s.value}
+                  </p>
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: "var(--color-muted-foreground)" }}
+                  >
+                    {s.sub}
+                  </p>
+                </div>
+                <div
+                  className="h-10 w-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "var(--color-neutral-100)" }}
+                >
+                  {s.icon}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: "26px",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  letterSpacing: "-0.5px",
-                  marginBottom: "4px",
-                }}
-              >
-                {s.value}
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                {s.sub}
-              </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 
-        {/* ── Placeholder sections for future services ── */}
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div
+            className="rounded-xl border p-6"
             style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-faint)",
-              borderRadius: "10px",
-              padding: "20px",
+              backgroundColor: "var(--color-card)",
+              borderColor: "var(--color-border)",
             }}
           >
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
+            <h5
+              className="font-semibold mb-1"
+              style={{ color: "var(--color-foreground)" }}
+            >
               Recent Activity
-            </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "20px" }}>
+            </h5>
+            <p
+              className="text-xs mb-6"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
               System events across all services
-            </div>
+            </p>
             <div
-              style={{
-                color: "var(--text-muted)",
-                fontSize: "13px",
-                textAlign: "center",
-                padding: "32px 0",
-              }}
+              className="text-sm text-center py-8"
+              style={{ color: "var(--color-muted-foreground)" }}
             >
               Coming in Service 7 — Audit Logs
             </div>
           </div>
 
           <div
+            className="rounded-xl border p-6"
             style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-faint)",
-              borderRadius: "10px",
-              padding: "20px",
+              backgroundColor: "var(--color-card)",
+              borderColor: "var(--color-border)",
             }}
           >
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px" }}>
+            <h5
+              className="font-semibold mb-1"
+              style={{ color: "var(--color-foreground)" }}
+            >
               Claim Pipeline
-            </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "20px" }}>
+            </h5>
+            <p
+              className="text-xs mb-6"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
               Status breakdown across all claims
-            </div>
+            </p>
             <div
-              style={{
-                color: "var(--text-muted)",
-                fontSize: "13px",
-                textAlign: "center",
-                padding: "32px 0",
-              }}
+              className="text-sm text-center py-8"
+              style={{ color: "var(--color-muted-foreground)" }}
             >
               Coming in Service 4 — Evaluation
             </div>
           </div>
         </div>
       </div>
-    </>
+    </DashboardLayout>
   );
 }

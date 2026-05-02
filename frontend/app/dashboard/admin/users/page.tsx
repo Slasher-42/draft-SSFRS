@@ -1,8 +1,9 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Header from "@/components/Header";
+import { motion } from "framer-motion";
+import { Search, UserPlus, Trash2 } from "lucide-react";
+import { toast } from "react-toastify";
 import api from "@/lib/api";
 
 interface User {
@@ -16,68 +17,48 @@ interface User {
   createdAt: string;
 }
 
-const ROLE_OPTIONS = [
-  "ALL", "ADMIN", "PROVIDER", "WORKER", "EVALUATOR", "REFUND_OFFICE",
-];
+const ROLE_OPTIONS = ["ALL", "ADMIN", "PROVIDER", "WORKER", "EVALUATOR", "REFUND_OFFICE"];
 
-const roleBadge: Record<string, { bg: string; color: string; label: string }> = {
-  ADMIN:         { bg: "rgba(248,81,73,0.12)",  color: "#f85149", label: "Admin"        },
-  PROVIDER:      { bg: "rgba(47,129,247,0.12)", color: "#58a6ff", label: "Provider"     },
-  WORKER:        { bg: "rgba(63,185,80,0.12)",  color: "#3fb950", label: "Worker"       },
-  EVALUATOR:     { bg: "rgba(210,153,34,0.12)", color: "#d29922", label: "Evaluator"    },
-  REFUND_OFFICE: { bg: "rgba(88,166,255,0.12)", color: "#79c0ff", label: "Refund Office"},
+const roleLabel: Record<string, string> = {
+  ADMIN: "Admin",
+  PROVIDER: "Provider",
+  WORKER: "Worker",
+  EVALUATOR: "Evaluator",
+  REFUND_OFFICE: "Refund Office",
 };
 
 function RoleBadge({ role }: { role: string }) {
-  const s = roleBadge[role] || {
-    bg: "rgba(255,255,255,0.08)",
-    color: "#8b949e",
-    label: role,
-  };
   return (
     <span
+      className="px-2.5 py-0.5 rounded-full text-xs font-medium"
       style={{
-        background: s.bg,
-        color: s.color,
-        fontSize: "11px",
-        fontWeight: 600,
-        padding: "2px 8px",
-        borderRadius: "20px",
+        backgroundColor: "var(--color-neutral-100)",
+        color: "var(--color-neutral-600)",
       }}
     >
-      {s.label}
+      {roleLabel[role] || role}
     </span>
   );
 }
 
-function StatusDot({ active, locked }: { active: boolean; locked: boolean }) {
-  const color = locked
-    ? "var(--danger)"
-    : active
-    ? "var(--success)"
-    : "var(--warn)";
-  const label = locked ? "Locked" : active ? "Active" : "Inactive";
+function StatusBadge({ active, locked }: { active: boolean; locked: boolean }) {
+  if (locked) {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+        Locked
+      </span>
+    );
+  }
+  if (active) {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+        Active
+      </span>
+    );
+  }
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "5px",
-        fontSize: "12px",
-        color: "var(--text-secondary)",
-      }}
-    >
-      <span
-        style={{
-          width: "6px",
-          height: "6px",
-          borderRadius: "50%",
-          background: color,
-          display: "inline-block",
-          flexShrink: 0,
-        }}
-      />
-      {label}
+    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+      Inactive
     </span>
   );
 }
@@ -89,15 +70,6 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [toast, setToast] = useState<{
-    msg: string;
-    type: "success" | "error";
-  } | null>(null);
-
-  function showToast(msg: string, type: "success" | "error" = "success") {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  }
 
   const applyFilters = useCallback(
     (list: User[], q: string, role: string) => {
@@ -123,7 +95,7 @@ export default function UsersPage() {
       setUsers(res.data);
       applyFilters(res.data, search, roleFilter);
     } catch {
-      showToast("Failed to load users", "error");
+      toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -144,412 +116,220 @@ export default function UsersPage() {
         ? `/api/admin/users/${user.id}/deactivate`
         : `/api/admin/users/${user.id}/activate`;
       await api.patch(endpoint);
-      showToast(
-        `${user.fullName} ${user.active ? "deactivated" : "activated"}`
-      );
+      toast.success(`${user.fullName} ${user.active ? "deactivated" : "activated"}`);
       fetchUsers();
     } catch {
-      showToast("Action failed", "error");
+      toast.error("Action failed");
     } finally {
       setActionLoading(null);
     }
   }
 
   async function deleteUser(user: User) {
-    if (
-      !confirm(
-        `Permanently delete ${user.fullName}? This cannot be undone.`
-      )
-    )
-      return;
+    if (!confirm(`Permanently delete ${user.fullName}? This cannot be undone.`)) return;
     setActionLoading(user.id);
     try {
       await api.delete(`/api/admin/users/${user.id}`);
-      showToast(`${user.fullName} deleted`);
+      toast.success(`${user.fullName} deleted`);
       fetchUsers();
     } catch {
-      showToast("Delete failed", "error");
+      toast.error("Delete failed");
     } finally {
       setActionLoading(null);
     }
   }
 
   return (
-    <>
-      <Header
-        title="User Management"
-        subtitle="View, search, filter and manage all platform accounts"
-        actions={
-          <a
-            href="/dashboard/admin/users/create"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "var(--accent)",
-              color: "#fff",
-              padding: "7px 14px",
-              borderRadius: "7px",
-              fontSize: "13px",
-              fontWeight: 500,
-              textDecoration: "none",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
-            </svg>
-            Create Account
-          </a>
-        }
-      />
-
-      <div style={{ padding: "24px 28px", flex: 1 }}>
-        {/* Toast notification */}
-        {toast && (
-          <div
-            style={{
-              position: "fixed",
-              top: "20px",
-              right: "20px",
-              zIndex: 999,
-              background:
-                toast.type === "success"
-                  ? "var(--success-muted)"
-                  : "var(--danger-muted)",
-              border: `1px solid ${
-                toast.type === "success"
-                  ? "rgba(63,185,80,0.3)"
-                  : "rgba(248,81,73,0.3)"
-              }`,
-              color:
-                toast.type === "success"
-                  ? "var(--success)"
-                  : "var(--danger)",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              fontSize: "13px",
-              fontWeight: 500,
-            }}
-          >
-            {toast.msg}
-          </div>
-        )}
-
-        {/* ── Search and filter bar ── */}
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            marginBottom: "18px",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 style={{ color: "var(--color-primary-800)" }}>User Management</h3>
+          <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+            View, search, filter and manage all platform accounts.
+          </p>
+        </div>
+        <a
+          href="/dashboard/admin/users/create"
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition"
+          style={{ backgroundColor: "var(--color-primary)" }}
         >
-          {/* Search input */}
-          <div
-            style={{
-              position: "relative",
-              flex: 1,
-              minWidth: "220px",
-              maxWidth: "360px",
-            }}
-          >
-            <svg
-              style={{
-                position: "absolute",
-                left: "11px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "var(--text-muted)",
-              }}
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-            >
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
-            </svg>
+          <UserPlus className="h-4 w-4" />
+          Create Account
+        </a>
+      </div>
+
+      <div
+        className="rounded-xl border p-4 space-y-4"
+        style={{
+          backgroundColor: "var(--color-card)",
+          borderColor: "var(--color-border)",
+        }}
+      >
+        <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+              style={{ color: "var(--color-neutral-400)" }}
+            />
             <input
               type="text"
               placeholder="Search by name, email or phone…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
               style={{
-                width: "100%",
-                background: "var(--bg-surface)",
-                border: "1px solid var(--border-light)",
-                borderRadius: "7px",
-                padding: "8px 12px 8px 32px",
-                fontSize: "13px",
-                color: "var(--text-primary)",
-                fontFamily: "inherit",
-                outline: "none",
+                borderColor: "var(--color-border)",
+                backgroundColor: "var(--color-background)",
+                color: "var(--color-foreground)",
               }}
             />
           </div>
 
-          {/* Role filter buttons */}
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          <div className="flex flex-wrap gap-2">
             {ROLE_OPTIONS.map((r) => (
               <button
                 key={r}
+                type="button"
                 onClick={() => setRoleFilter(r)}
+                className="px-3 py-1 rounded-full text-xs font-medium border transition-all"
                 style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  border:
-                    roleFilter === r
-                      ? "1px solid var(--accent-border)"
-                      : "1px solid var(--border-light)",
-                  background:
-                    roleFilter === r
-                      ? "var(--accent-muted)"
-                      : "var(--bg-surface)",
-                  color:
-                    roleFilter === r
-                      ? "var(--accent)"
-                      : "var(--text-secondary)",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all 0.12s",
+                  backgroundColor:
+                    roleFilter === r ? "var(--color-primary)" : "var(--color-background)",
+                  color: roleFilter === r ? "#ffffff" : "var(--color-neutral-600)",
+                  borderColor:
+                    roleFilter === r ? "var(--color-primary)" : "var(--color-border)",
                 }}
               >
-                {r === "ALL" ? "All Roles" : roleBadge[r]?.label || r}
+                {r === "ALL" ? "All Roles" : roleLabel[r] || r}
               </button>
             ))}
           </div>
 
-          <div
-            style={{
-              marginLeft: "auto",
-              fontSize: "12px",
-              color: "var(--text-muted)",
-            }}
+          <span
+            className="text-xs flex-shrink-0"
+            style={{ color: "var(--color-muted-foreground)" }}
           >
             {filtered.length} {filtered.length === 1 ? "user" : "users"}
-          </div>
+          </span>
         </div>
 
-        {/* ── Users table ── */}
-        <div
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-faint)",
-            borderRadius: "10px",
-            overflow: "hidden",
-          }}
-        >
-          {/* Table column headers */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr 120px",
-              padding: "10px 20px",
-              borderBottom: "1px solid var(--border-faint)",
-              fontSize: "11px",
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              letterSpacing: "0.4px",
-              textTransform: "uppercase",
-            }}
-          >
-            <span>Name</span>
-            <span>Email</span>
-            <span>Role</span>
-            <span>Status</span>
-            <span>Joined</span>
-            <span style={{ textAlign: "right" }}>Actions</span>
-          </div>
-
-          {/* Table rows */}
-          {loading ? (
-            <div
-              style={{
-                padding: "48px",
-                textAlign: "center",
-                color: "var(--text-muted)",
-                fontSize: "13px",
-              }}
-            >
-              Loading users…
-            </div>
-          ) : filtered.length === 0 ? (
-            <div
-              style={{
-                padding: "48px",
-                textAlign: "center",
-                color: "var(--text-muted)",
-                fontSize: "13px",
-              }}
-            >
-              No users found
-            </div>
-          ) : (
-            filtered.map((user, i) => (
-              <div
-                key={user.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr 120px",
-                  padding: "12px 20px",
-                  alignItems: "center",
-                  borderBottom:
-                    i < filtered.length - 1
-                      ? "1px solid var(--border-faint)"
-                      : "none",
-                  transition: "background 0.1s",
-                  opacity: actionLoading === user.id ? 0.5 : 1,
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "var(--bg-elevated)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                {/* Name + avatar */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "50%",
-                      background:
-                        roleBadge[user.role]?.bg ||
-                        "rgba(255,255,255,0.08)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color:
-                        roleBadge[user.role]?.color ||
-                        "var(--text-secondary)",
-                      flexShrink: 0,
-                    }}
+        <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "var(--color-border)" }}>
+          <table className="w-full">
+            <thead style={{ backgroundColor: "var(--color-neutral-50)" }}>
+              <tr>
+                {["Name", "Email", "Phone", "Role", "Status", "Joined", "Actions"].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--color-neutral-500)" }}
                   >
-                    {user.fullName
-                      .split(" ")
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {user.fullName}
-                  </span>
-                </div>
-
-                {/* Email */}
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--text-secondary)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    paddingRight: "12px",
-                  }}
-                >
-                  {user.email}
-                </span>
-
-                {/* Role badge */}
-                <span>
-                  <RoleBadge role={user.role} />
-                </span>
-
-                {/* Status */}
-                <span>
-                  <StatusDot active={user.active} locked={user.locked} />
-                </span>
-
-                {/* Date joined */}
-                <span
-                  style={{ fontSize: "12px", color: "var(--text-muted)" }}
-                >
-                  {new Date(user.createdAt).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-
-                {/* Action buttons */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <button
-                    onClick={() => toggleActive(user)}
-                    disabled={actionLoading === user.id}
-                    style={{
-                      padding: "5px 8px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--border-light)",
-                      background: "transparent",
-                      cursor: "pointer",
-                      color: user.active
-                        ? "var(--warn)"
-                        : "var(--success)",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                      fontFamily: "inherit",
-                      transition: "all 0.12s",
-                    }}
-                  >
-                    {user.active ? "Deactivate" : "Activate"}
-                  </button>
-                  <button
-                    onClick={() => deleteUser(user)}
-                    disabled={actionLoading === user.id}
-                    style={{
-                      padding: "5px 7px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(248,81,73,0.2)",
-                      background: "transparent",
-                      cursor: "pointer",
-                      color: "var(--danger)",
-                      transition: "all 0.12s",
-                    }}
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                    >
-                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                      <path
-                        fillRule="evenodd"
-                        d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <span
+                        className="h-6 w-6 rounded-full border-2 border-t-transparent animate-spin"
+                        style={{ borderColor: "var(--color-primary)" }}
                       />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+                      <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                        Loading users…
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                      No users found.
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((user, index) => (
+                  <motion.tr
+                    key={user.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="border-t transition-colors"
+                    style={{ borderColor: "var(--color-border)" }}
+                  >
+                    <td
+                      className="px-4 py-3 text-sm font-medium"
+                      style={{ color: "var(--color-foreground)" }}
+                    >
+                      {user.fullName}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-sm"
+                      style={{ color: "var(--color-foreground)" }}
+                    >
+                      {user.email}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-sm"
+                      style={{ color: "var(--color-foreground)" }}
+                    >
+                      {user.phone || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <RoleBadge role={user.role} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge active={user.active} locked={user.locked} />
+                    </td>
+                    <td
+                      className="px-4 py-3 text-sm"
+                      style={{ color: "var(--color-muted-foreground)" }}
+                    >
+                      {new Date(user.createdAt).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => toggleActive(user)}
+                          disabled={actionLoading === user.id}
+                          className="px-3 py-1 rounded-lg border text-xs font-medium transition"
+                          style={{
+                            borderColor: "var(--color-border)",
+                            color: user.active ? "#d97706" : "#16a34a",
+                            backgroundColor: "transparent",
+                          }}
+                        >
+                          {user.active ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => deleteUser(user)}
+                          disabled={actionLoading === user.id}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg border transition"
+                          style={{
+                            borderColor: "#fecaca",
+                            color: "#ef4444",
+                            backgroundColor: "transparent",
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-      <style>{`input::placeholder { color: var(--text-muted); }`}</style>
-    </>
+    </div>
   );
 }

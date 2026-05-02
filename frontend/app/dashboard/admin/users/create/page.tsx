@@ -1,33 +1,11 @@
-
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Header from "@/components/Header";
+import { Mail, Lock, User, Phone, ArrowLeft, Info } from "lucide-react";
+import { toast } from "react-toastify";
+import { motion } from "framer-motion";
 import api from "@/lib/api";
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "var(--bg-elevated)",
-  border: "1px solid var(--border-light)",
-  borderRadius: "8px",
-  padding: "10px 14px",
-  fontSize: "14px",
-  color: "var(--text-primary)",
-  fontFamily: "inherit",
-  outline: "none",
-  transition: "border-color 0.15s",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "11px",
-  fontWeight: 600,
-  color: "var(--text-muted)",
-  marginBottom: "6px",
-  letterSpacing: "0.5px",
-  textTransform: "uppercase",
-};
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -39,8 +17,6 @@ export default function CreateAccountPage() {
     phone: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   function handleChange(field: string, value: string) {
     setForm((p) => ({ ...p, [field]: value }));
@@ -48,11 +24,10 @@ export default function CreateAccountPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     setLoading(true);
     try {
       await api.post("/api/admin/users", form);
-      setSuccess(
+      toast.success(
         `Account created for ${form.fullName}. Credentials sent to ${form.email}.`
       );
       setForm({
@@ -66,140 +41,95 @@ export default function CreateAccountPage() {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response
           ?.data?.message || "Failed to create account.";
-      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <>
-      <Header
-        title="Create Account"
-        subtitle="Manually create Evaluator or Refund Office accounts"
-        actions={
-          <button
-            onClick={() => router.push("/dashboard/admin/users")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 13px",
-              borderRadius: "7px",
-              border: "1px solid var(--border-light)",
-              background: "transparent",
-              color: "var(--text-secondary)",
-              fontSize: "13px",
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 style={{ color: "var(--color-primary-800)" }}>Create Account</h3>
+          <p
+            className="text-sm mt-1"
+            style={{ color: "var(--color-muted-foreground)" }}
           >
-            ← Back to Users
-          </button>
-        }
-      />
+            Manually create Evaluator or Refund Office accounts.
+          </p>
+        </div>
+        <button
+          onClick={() => router.push("/dashboard/admin/users")}
+          className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition"
+          style={{
+            borderColor: "var(--color-border)",
+            color: "var(--color-foreground)",
+            backgroundColor: "transparent",
+          }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Users
+        </button>
+      </div>
 
-      <div style={{ padding: "32px 28px", flex: 1 }}>
-        <div style={{ maxWidth: "520px" }}>
-
-          {/* Info banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="max-w-lg"
+      >
+        <div
+          className="rounded-xl border p-6 space-y-5"
+          style={{
+            backgroundColor: "var(--color-card)",
+            borderColor: "var(--color-border)",
+          }}
+        >
           <div
+            className="flex items-start gap-3 rounded-lg border p-3"
             style={{
-              background: "var(--accent-muted)",
-              border: "1px solid var(--accent-border)",
-              borderRadius: "8px",
-              padding: "12px 16px",
-              fontSize: "13px",
-              color: "var(--info)",
-              marginBottom: "28px",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "10px",
+              backgroundColor: "var(--color-neutral-50)",
+              borderColor: "var(--color-neutral-200)",
             }}
           >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              style={{ marginTop: "1px", flexShrink: 0 }}
-            >
-              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" />
-            </svg>
-            <span>
-              Evaluator and Refund Office accounts cannot self-register.
-              Only the Admin can create them here. The temporary password
-              will be sent to their email.
-            </span>
+            <Info
+              className="h-4 w-4 mt-0.5 flex-shrink-0"
+              style={{ color: "var(--color-neutral-500)" }}
+            />
+            <p className="text-xs" style={{ color: "var(--color-neutral-600)" }}>
+              Evaluator and Refund Office accounts cannot self-register. Only
+              the Admin can create them here. The temporary password will be
+              shared with the staff member directly.
+            </p>
           </div>
 
-          {error && (
-            <div
-              style={{
-                background: "var(--danger-muted)",
-                border: "1px solid rgba(248,81,73,0.25)",
-                borderRadius: "8px",
-                padding: "10px 14px",
-                fontSize: "13px",
-                color: "var(--danger)",
-                marginBottom: "20px",
-              }}
-            >
-              {error}
-            </div>
-          )}
-          {success && (
-            <div
-              style={{
-                background: "var(--success-muted)",
-                border: "1px solid rgba(63,185,80,0.25)",
-                borderRadius: "8px",
-                padding: "10px 14px",
-                fontSize: "13px",
-                color: "var(--success)",
-                marginBottom: "20px",
-              }}
-            >
-              {success}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            {/* Role selector */}
-            <div style={{ marginBottom: "20px" }}>
-              <label style={labelStyle}>Account Role</label>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "10px",
-                }}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
               >
+                Account Role
+              </label>
+              <div className="flex gap-3">
                 {(["EVALUATOR", "REFUND_OFFICE"] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
                     onClick={() => handleChange("role", r)}
+                    className="flex-1 px-4 py-2 rounded-full text-xs font-medium border transition-all"
                     style={{
-                      padding: "10px 14px",
-                      borderRadius: "8px",
-                      border:
+                      backgroundColor:
                         form.role === r
-                          ? "1px solid var(--accent-border)"
-                          : "1px solid var(--border-light)",
-                      background:
-                        form.role === r
-                          ? "var(--accent-muted)"
-                          : "var(--bg-elevated)",
+                          ? "var(--color-primary)"
+                          : "var(--color-background)",
                       color:
+                        form.role === r ? "#ffffff" : "var(--color-neutral-600)",
+                      borderColor:
                         form.role === r
-                          ? "var(--accent)"
-                          : "var(--text-secondary)",
-                      fontSize: "13px",
-                      fontWeight: form.role === r ? 600 : 400,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "all 0.15s",
+                          ? "var(--color-primary)"
+                          : "var(--color-border)",
                     }}
                   >
                     {r === "EVALUATOR" ? "Evaluator" : "Refund Office"}
@@ -208,109 +138,140 @@ export default function CreateAccountPage() {
               </div>
             </div>
 
-            {/* Name + Phone row */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "14px",
-                marginBottom: "14px",
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Full Name</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: "var(--color-foreground)" }}
+                >
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                    style={{ color: "var(--color-neutral-400)" }}
+                  />
+                  <input
+                    type="text"
+                    required
+                    value={form.fullName}
+                    placeholder="Jane Smith"
+                    onChange={(e) => handleChange("fullName", e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
+                    style={{
+                      borderColor: "var(--color-border)",
+                      backgroundColor: "var(--color-background)",
+                      color: "var(--color-foreground)",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: "var(--color-foreground)" }}
+                >
+                  Phone{" "}
+                  <span style={{ color: "var(--color-neutral-400)" }}>
+                    (optional)
+                  </span>
+                </label>
+                <div className="relative">
+                  <Phone
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                    style={{ color: "var(--color-neutral-400)" }}
+                  />
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    placeholder="+250 700 000 000"
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
+                    style={{
+                      borderColor: "var(--color-border)",
+                      backgroundColor: "var(--color-background)",
+                      color: "var(--color-foreground)",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--color-neutral-400)" }}
+                />
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={form.fullName}
-                  placeholder="Jane Smith"
-                  onChange={(e) => handleChange("fullName", e.target.value)}
-                  style={inputStyle}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "var(--accent)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "var(--border-light)")
-                  }
+                  value={form.email}
+                  placeholder="staff@platform.com"
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    backgroundColor: "var(--color-background)",
+                    color: "var(--color-foreground)",
+                  }}
                 />
               </div>
-              <div>
-                <label style={labelStyle}>Phone Number</label>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Temporary Password
+              </label>
+              <div className="relative">
+                <Lock
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--color-neutral-400)" }}
+                />
                 <input
-                  type="tel"
-                  value={form.phone}
-                  placeholder="+250 700 000 000"
-                  onChange={(e) => handleChange("phone", e.target.value)}
-                  style={inputStyle}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "var(--accent)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "var(--border-light)")
-                  }
+                  type="password"
+                  required
+                  value={form.password}
+                  placeholder="••••••••"
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    backgroundColor: "var(--color-background)",
+                    color: "var(--color-foreground)",
+                  }}
                 />
               </div>
-            </div>
-
-            <div style={{ marginBottom: "14px" }}>
-              <label style={labelStyle}>Email Address</label>
-              <input
-                type="email"
-                required
-                value={form.email}
-                placeholder="staff@platform.com"
-                onChange={(e) => handleChange("email", e.target.value)}
-                style={inputStyle}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "var(--accent)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "var(--border-light)")
-                }
-              />
-            </div>
-
-            <div style={{ marginBottom: "28px" }}>
-              <label style={labelStyle}>Temporary Password</label>
-              <input
-                type="password"
-                required
-                value={form.password}
-                placeholder="Set a temporary password"
-                onChange={(e) => handleChange("password", e.target.value)}
-                style={inputStyle}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "var(--accent)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "var(--border-light)")
-                }
-              />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              style={{
-                background: loading
-                  ? "rgba(47,129,247,0.5)"
-                  : "var(--accent)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                padding: "10px 22px",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
+              className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition"
+              style={{ backgroundColor: "var(--color-primary)" }}
             >
-              {loading ? "Creating…" : "Create Account"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Creating account…
+                </span>
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
         </div>
-      </div>
-      <style>{`input::placeholder { color: var(--text-muted); }`}</style>
-    </>
+      </motion.div>
+    </div>
   );
 }
