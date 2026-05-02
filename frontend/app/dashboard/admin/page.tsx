@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { Users, FolderOpen, AlertCircle, Receipt } from "lucide-react";
-import DashboardLayout from "@/components/DashboardLayout";
 
 const stats = [
   {
@@ -33,8 +32,7 @@ const stats = [
 
 export default function AdminOverviewPage() {
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h3 style={{ color: "var(--color-primary-800)" }}>Admin Overview</h3>
           <p
@@ -146,6 +144,5 @@ export default function AdminOverviewPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
   );
 }
