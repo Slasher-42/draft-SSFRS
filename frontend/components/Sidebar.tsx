@@ -1,329 +1,247 @@
-
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Home,
+  PlusCircle,
+  FolderOpen,
+  AlertCircle,
+  ClipboardList,
+  User,
+  Upload,
+  Briefcase,
+  MessageSquare,
+  CheckSquare,
+  CreditCard,
+  Receipt,
+  Users,
+  ClipboardCheck,
+  ScrollText,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+} from "lucide-react";
 import { authService } from "@/lib/authService";
 
-export interface NavItem {
+interface NavItem {
   label: string;
-  path: string;
+  href: string;
   icon: React.ReactNode;
-  badge?: number;
+}
+
+function getNavItems(role: string): NavItem[] {
+  switch (role) {
+    case "PROVIDER":
+      return [
+        { label: "Dashboard", href: "/dashboard/provider", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Post Project", href: "/dashboard/provider/post-project", icon: <PlusCircle className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Projects", href: "/dashboard/provider/projects", icon: <FolderOpen className="h-5 w-5 flex-shrink-0" /> },
+        { label: "File a Claim", href: "/dashboard/provider/file-claim", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Claims", href: "/dashboard/provider/claims", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Profile", href: "/dashboard/provider/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+      ];
+    case "WORKER":
+      return [
+        { label: "Dashboard", href: "/dashboard/worker", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Submit CV", href: "/dashboard/worker/submit-cv", icon: <Upload className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Assignments", href: "/dashboard/worker/assignments", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Claim Responses", href: "/dashboard/worker/claim-responses", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Profile", href: "/dashboard/worker/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+      ];
+    case "EVALUATOR":
+      return [
+        { label: "Dashboard", href: "/dashboard/evaluator", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Assigned Claims", href: "/dashboard/evaluator/claims", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Decisions", href: "/dashboard/evaluator/decisions", icon: <CheckSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Profile", href: "/dashboard/evaluator/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+      ];
+    case "REFUND_OFFICE":
+      return [
+        { label: "Dashboard", href: "/dashboard/refund-office", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Refund Orders", href: "/dashboard/refund-office/orders", icon: <CreditCard className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Refund Records", href: "/dashboard/refund-office/records", icon: <Receipt className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Profile", href: "/dashboard/refund-office/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+      ];
+    case "ADMIN":
+      return [
+        { label: "Dashboard", href: "/dashboard/admin", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
+        { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Assign Claims", href: "/dashboard/admin/assign-claims", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "All Projects", href: "/dashboard/admin/projects", icon: <FolderOpen className="h-5 w-5 flex-shrink-0" /> },
+        { label: "All Claims", href: "/dashboard/admin/claims", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Refund Records", href: "/dashboard/admin/refunds", icon: <Receipt className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Audit Logs", href: "/dashboard/admin/audit-logs", icon: <ScrollText className="h-5 w-5 flex-shrink-0" /> },
+        { label: "AI Configuration", href: "/dashboard/admin/ai-config", icon: <SlidersHorizontal className="h-5 w-5 flex-shrink-0" /> },
+      ];
+    default:
+      return [];
+  }
 }
 
 interface SidebarProps {
-  role: string;
-  fullName: string;
-  email: string;
-  navItems: NavItem[];
+  collapsed: boolean;
+  setCollapsed: (val: boolean) => void;
 }
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
-function getRoleColor(role: string) {
-  switch (role) {
-    case "ADMIN":         return { bg: "rgba(248,81,73,0.15)",  text: "#f85149" };
-    case "PROVIDER":      return { bg: "rgba(47,129,247,0.15)", text: "#58a6ff" };
-    case "WORKER":        return { bg: "rgba(63,185,80,0.15)",  text: "#3fb950" };
-    case "EVALUATOR":     return { bg: "rgba(210,153,34,0.15)", text: "#d29922" };
-    case "REFUND_OFFICE": return { bg: "rgba(88,166,255,0.15)", text: "#79c0ff" };
-    default:              return { bg: "rgba(255,255,255,0.08)", text: "#8b949e" };
-  }
-}
-
-function getRoleLabel(role: string) {
-  switch (role) {
-    case "ADMIN":         return "Administrator";
-    case "PROVIDER":      return "Project Provider";
-    case "WORKER":        return "Worker";
-    case "EVALUATOR":     return "Evaluator";
-    case "REFUND_OFFICE": return "Refund Office";
-    default:              return role;
-  }
-}
-
-export default function Sidebar({
-  role,
-  fullName,
-  email,
-  navItems,
-}: SidebarProps) {
-  const router = useRouter();
+export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   const pathname = usePathname();
-  const roleStyle = getRoleColor(role);
+  const router = useRouter();
+  const [isMobile, setIsMobile] = useState(false);
+  const [session, setSession] = useState<{ fullName: string; role: string } | null>(null);
+
+  useEffect(() => {
+    const s = authService.getSession();
+    if (s) setSession({ fullName: s.fullName, role: s.role });
+
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const navItems = getNavItems(session?.role || "");
+  const initial = session?.fullName?.charAt(0).toUpperCase() || "U";
+
+  const handleLogout = () => {
+    authService.logout();
+    router.push("/login");
+  };
 
   return (
-    <div
-      style={{
-        width: "var(--sidebar-width)",
-        background: "var(--bg-surface)",
-        borderRight: "1px solid var(--border-faint)",
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        position: "fixed",
-        top: 0,
-        left: 0,
-        zIndex: 100,
-        overflowY: "auto",
-      }}
-    >
-      {/* ── Brand ── */}
-      <div
+    <>
+      {isMobile && !collapsed && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
+
+      <motion.aside
+        animate={{
+          width: collapsed ? 64 : 256,
+          x: isMobile && collapsed ? -256 : 0,
+        }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className="fixed md:relative z-40 flex flex-col h-screen overflow-hidden"
         style={{
-          padding: "20px 20px 18px",
-          borderBottom: "1px solid var(--border-faint)",
-          display: "flex",
-          alignItems: "center",
-          gap: "11px",
+          backgroundColor: "#1A1A1A",
+          borderRight: "1px solid #2A2A2A",
+          minWidth: collapsed ? 64 : 256,
         }}
       >
         <div
-          style={{
-            width: "34px",
-            height: "34px",
-            background: "var(--accent)",
-            borderRadius: "8px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "13px",
-            fontWeight: 700,
-            color: "#fff",
-            letterSpacing: "-0.5px",
-            flexShrink: 0,
-          }}
+          className="flex items-center p-4 flex-shrink-0"
+          style={{ borderBottom: "1px solid #2A2A2A" }}
         >
-          RS
-        </div>
-        <div>
-          <div
-            style={{
-              fontSize: "14px",
-              fontWeight: 600,
-              letterSpacing: "-0.2px",
-              color: "var(--text-primary)",
-            }}
+          {!collapsed && (
+            <span className="flex-1 text-white font-bold text-base tracking-tight">
+              SSFRS
+            </span>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="h-7 w-7 rounded flex items-center justify-center flex-shrink-0"
+            style={{ color: "rgba(255,255,255,0.6)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#ffffff")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
           >
-            RefundSmart
-          </div>
-          <div
-            style={{
-              fontSize: "10px",
-              color: "var(--text-muted)",
-              letterSpacing: "0.5px",
-              textTransform: "uppercase",
-            }}
-          >
-            Platform
-          </div>
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </button>
         </div>
-      </div>
 
-      {/* ── Navigation buttons ── */}
-      <nav
-        style={{
-          flex: 1,
-          padding: "12px 10px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "2px",
-        }}
-      >
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.path ||
-            pathname.startsWith(item.path + "/");
-          return (
-            <button
-              key={item.path}
-              onClick={() => router.push(item.path)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "9px 12px",
-                borderRadius: "8px",
-                border: isActive
-                  ? "1px solid var(--accent-border)"
-                  : "1px solid transparent",
-                background: isActive ? "var(--accent-muted)" : "transparent",
-                color: isActive
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-                fontSize: "13px",
-                fontWeight: isActive ? 500 : 400,
-                cursor: "pointer",
-                width: "100%",
-                textAlign: "left",
-                transition: "all 0.12s",
-                fontFamily: "inherit",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = "var(--bg-elevated)";
-                  e.currentTarget.style.color = "var(--text-primary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }
-              }}
-            >
-              <span
-                style={{
-                  opacity: isActive ? 1 : 0.65,
-                  display: "flex",
-                  alignItems: "center",
-                  flexShrink: 0,
-                }}
+        <nav className="flex-1 overflow-y-auto p-3">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    title={item.label}
+                    className="flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150"
+                    style={{
+                      backgroundColor: isActive ? "#3D3D3D" : "transparent",
+                      color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = "#2A2A2A";
+                        e.currentTarget.style.color = "#ffffff";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                      }
+                    }}
+                  >
+                    <span className={collapsed ? "mx-auto" : "mr-3"}>
+                      {item.icon}
+                    </span>
+                    <AnimatePresence>
+                      {!collapsed && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          {item.label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div
+          className="flex-shrink-0 p-3"
+          style={{ borderTop: "1px solid #2A2A2A" }}
+        >
+          {collapsed ? (
+            <div className="flex justify-center">
+              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[#4A4A4A]">
+                <span className="text-white font-bold text-sm">{initial}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[#4A4A4A] flex-shrink-0">
+                <span className="text-white font-bold text-sm">{initial}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {session?.fullName || "User"}
+                </p>
+                <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  {session?.role || ""}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex-shrink-0"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#ffffff")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
               >
-                {item.icon}
-              </span>
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span
-                  style={{
-                    background: "var(--danger)",
-                    color: "#fff",
-                    fontSize: "10px",
-                    fontWeight: 600,
-                    padding: "1px 6px",
-                    borderRadius: "20px",
-                    minWidth: "18px",
-                    textAlign: "center",
-                  }}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* ── User footer ── */}
-      <div
-        style={{ borderTop: "1px solid var(--border-faint)", padding: "14px" }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            marginBottom: "10px",
-          }}
-        >
-          <div
-            style={{
-              width: "34px",
-              height: "34px",
-              borderRadius: "50%",
-              background: roleStyle.bg,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: roleStyle.text,
-              flexShrink: 0,
-            }}
-          >
-            {getInitials(fullName)}
-          </div>
-          <div style={{ overflow: "hidden", flex: 1 }}>
-            <div
-              style={{
-                fontSize: "13px",
-                fontWeight: 500,
-                color: "var(--text-primary)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {fullName}
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
-            <div
-              style={{
-                fontSize: "11px",
-                color: "var(--text-muted)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {email}
-            </div>
-          </div>
+          )}
         </div>
-
-        {/* Role badge */}
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "2px 8px",
-            background: roleStyle.bg,
-            borderRadius: "20px",
-            fontSize: "10px",
-            fontWeight: 600,
-            color: roleStyle.text,
-            letterSpacing: "0.3px",
-            textTransform: "uppercase",
-            marginBottom: "10px",
-          }}
-        >
-          {getRoleLabel(role)}
-        </div>
-
-        {/* Sign out button */}
-        <button
-          onClick={() => authService.logout()}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            width: "100%",
-            padding: "8px 10px",
-            borderRadius: "7px",
-            border: "1px solid var(--border-faint)",
-            background: "transparent",
-            color: "var(--text-muted)",
-            fontSize: "12px",
-            cursor: "pointer",
-            fontFamily: "inherit",
-            transition: "all 0.12s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--danger-muted)";
-            e.currentTarget.style.color = "var(--danger)";
-            e.currentTarget.style.borderColor = "rgba(248,81,73,0.2)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "var(--text-muted)";
-            e.currentTarget.style.borderColor = "var(--border-faint)";
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M2 2.75C2 1.784 2.784 1 3.75 1h4.5a.75.75 0 0 1 0 1.5h-4.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h4.5a.75.75 0 0 1 0 1.5h-4.5A1.75 1.75 0 0 1 2 13.25V2.75zm10.44 4.5-1.97-1.97a.75.75 0 0 0-1.06 1.06L10.69 7.5H6.75a.75.75 0 0 0 0 1.5h3.94l-1.28 1.28a.75.75 0 1 0 1.06 1.06l1.97-1.97a.75.75 0 0 0 0-1.06z"
-            />
-          </svg>
-          Sign out
-        </button>
-      </div>
-    </div>
+      </motion.aside>
+    </>
   );
 }

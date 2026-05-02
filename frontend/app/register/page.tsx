@@ -1,429 +1,313 @@
-
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { toast } from "react-toastify";
+import { motion } from "framer-motion";
 import { authService } from "@/lib/authService";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "var(--bg-elevated)",
-  border: "1px solid var(--border-light)",
-  borderRadius: "8px",
-  padding: "10px 14px",
-  fontSize: "14px",
-  color: "var(--text-primary)",
-  fontFamily: "inherit",
-  outline: "none",
-  transition: "border-color 0.15s",
-};
+const schema = z.object({
+  fullName: z.string().min(2, "Full name is required"),
+  email: z.string().email("Enter a valid email"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[a-z]/, "Must contain a lowercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .regex(/[@$!%*?&]/, "Must contain a special character"),
+  phone: z.string().min(7, "Phone number is required"),
+  role: z.enum(["PROVIDER", "WORKER"], {
+    error: "Please select a role",
+  }),
+});
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "11px",
-  fontWeight: 600,
-  color: "var(--text-muted)",
-  marginBottom: "6px",
-  letterSpacing: "0.5px",
-  textTransform: "uppercase",
-};
+type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    phone: "",
-    role: "PROVIDER" as "PROVIDER" | "WORKER",
-  });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  function handleChange(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
+  const selectedRole = watch("role");
+
+  const onSubmit = async (data: FormData) => {
     setLoading(true);
     try {
-      await authService.register({
-        fullName: form.fullName,
-        email: form.email,
-        password: form.password,
-        phone: form.phone,
-        role: form.role,
-      });
-      setSuccess(
-        "Account created successfully! Redirecting to login…"
-      );
-      setTimeout(() => router.push("/login"), 1800);
+      await authService.register(data);
+      toast.success("Account created. Please sign in.");
+      router.push("/login");
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message || "Registration failed. Please try again.";
-      setError(msg);
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Registration failed. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--bg-base)",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        position: "relative",
-        overflowX: "hidden",
-        padding: "24px 16px",
-      }}
+      className="min-h-screen flex items-center justify-center px-4 py-10"
+      style={{ backgroundColor: "var(--color-neutral-50)" }}
     >
-      {/* Grid background */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "linear-gradient(rgba(47,129,247,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(47,129,247,0.04) 1px, transparent 1px)",
-          backgroundSize: "52px 52px",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Card */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "100%",
-          maxWidth: "440px",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-light)",
-          borderRadius: "16px",
-          padding: "28px 32px",
-          animation: "fadeUp 0.35s ease both",
-        }}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="w-full max-w-md"
       >
-        {/* Brand */}
         <div
+          className="rounded-xl border p-8"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            marginBottom: "20px",
+            backgroundColor: "var(--color-card)",
+            borderColor: "var(--color-border)",
           }}
         >
-          <div
-            style={{
-              width: "38px",
-              height: "38px",
-              background: "var(--accent)",
-              borderRadius: "9px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "15px",
-              fontWeight: 700,
-              color: "#fff",
-              letterSpacing: "-0.5px",
-              flexShrink: 0,
-            }}
-          >
-            RS
-          </div>
-          <div>
-            <div
-              style={{ fontSize: "15px", fontWeight: 600, letterSpacing: "-0.2px" }}
-            >
-              RefundSmart
-            </div>
-            <div
+          <div className="mb-8 text-center">
+            <h2 className="mb-1" style={{ color: "var(--color-primary-800)" }}>
+              SSFRS
+            </h2>
+            <p
               style={{
-                fontSize: "11px",
-                color: "var(--text-muted)",
-                letterSpacing: "0.4px",
-                textTransform: "uppercase",
+                color: "var(--color-muted-foreground)",
+                fontSize: "0.875rem",
               }}
             >
-              Platform
-            </div>
+              Create your account
+            </p>
           </div>
-        </div>
 
-        <h1
-          style={{
-            fontSize: "22px",
-            fontWeight: 600,
-            letterSpacing: "-0.4px",
-            marginBottom: "6px",
-          }}
-        >
-          Create your account
-        </h1>
-        <p
-          style={{
-            fontSize: "13px",
-            color: "var(--text-secondary)",
-            marginBottom: "20px",
-          }}
-        >
-          Available for Project Providers and Workers only
-        </p>
-
-        {/* Error */}
-        {error && (
-          <div
-            style={{
-              background: "var(--danger-muted)",
-              border: "1px solid rgba(248,81,73,0.25)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              fontSize: "13px",
-              color: "var(--danger)",
-              marginBottom: "20px",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Success */}
-        {success && (
-          <div
-            style={{
-              background: "var(--success-muted)",
-              border: "1px solid rgba(63,185,80,0.25)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              fontSize: "13px",
-              color: "var(--success)",
-              marginBottom: "20px",
-            }}
-          >
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          {/* Role selector */}
-          <div style={{ marginBottom: "14px" }}>
-            <label style={labelStyle}>I am a</label>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "10px",
-              }}
-            >
-              {(["PROVIDER", "WORKER"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => handleChange("role", r)}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Full Name
+              </label>
+              <div className="relative">
+                <User
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--color-neutral-400)" }}
+                />
+                <input
+                  type="text"
+                  {...register("fullName")}
+                  placeholder="John Doe"
+                  className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
                   style={{
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    border:
-                      form.role === r
-                        ? "1px solid var(--accent-border)"
-                        : "1px solid var(--border-light)",
-                    background:
-                      form.role === r
-                        ? "var(--accent-muted)"
-                        : "var(--bg-elevated)",
-                    color:
-                      form.role === r
-                        ? "var(--accent)"
-                        : "var(--text-secondary)",
-                    fontSize: "13px",
-                    fontWeight: form.role === r ? 600 : 400,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition: "all 0.15s",
+                    borderColor: errors.fullName
+                      ? "#ef4444"
+                      : "var(--color-border)",
+                    backgroundColor: "var(--color-background)",
+                    color: "var(--color-foreground)",
                   }}
-                >
-                  {r === "PROVIDER" ? "Project Provider" : "Worker"}
-                </button>
-              ))}
+                />
+              </div>
+              {errors.fullName && (
+                <p className="text-xs" style={{ color: "#ef4444" }}>
+                  {errors.fullName.message}
+                </p>
+              )}
             </div>
-          </div>
 
-          {/* Full Name */}
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Full Name</label>
-            <input
-              type="text"
-              required
-              value={form.fullName}
-              placeholder="John Doe"
-              onChange={(e) => handleChange("fullName", e.target.value)}
-              style={inputStyle}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "var(--accent)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "var(--border-light)")
-              }
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Email
+              </label>
+              <div className="relative">
+                <Mail
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--color-neutral-400)" }}
+                />
+                <input
+                  type="email"
+                  {...register("email")}
+                  placeholder="you@example.com"
+                  className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
+                  style={{
+                    borderColor: errors.email
+                      ? "#ef4444"
+                      : "var(--color-border)",
+                    backgroundColor: "var(--color-background)",
+                    color: "var(--color-foreground)",
+                  }}
+                />
+              </div>
+              {errors.email && (
+                <p className="text-xs" style={{ color: "#ef4444" }}>
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-          {/* Email */}
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Email Address</label>
-            <input
-              type="email"
-              required
-              value={form.email}
-              placeholder="you@company.com"
-              onChange={(e) => handleChange("email", e.target.value)}
-              style={inputStyle}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "var(--accent)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "var(--border-light)")
-              }
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Password
+              </label>
+              <div className="relative">
+                <Lock
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--color-neutral-400)" }}
+                />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  placeholder="••••••••"
+                  className="w-full rounded-lg border px-3 py-2 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 transition"
+                  style={{
+                    borderColor: errors.password
+                      ? "#ef4444"
+                      : "var(--color-border)",
+                    backgroundColor: "var(--color-background)",
+                    color: "var(--color-foreground)",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--color-neutral-400)" }}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-xs" style={{ color: "#ef4444" }}>
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
 
-          {/* Phone */}
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Phone Number</label>
-            <input
-              type="tel"
-              required
-              value={form.phone}
-              placeholder="+250 700 000 000"
-              onChange={(e) => handleChange("phone", e.target.value)}
-              style={inputStyle}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "var(--accent)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "var(--border-light)")
-              }
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Phone Number
+              </label>
+              <div className="relative">
+                <Phone
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                  style={{ color: "var(--color-neutral-400)" }}
+                />
+                <input
+                  type="tel"
+                  {...register("phone")}
+                  placeholder="+1 234 567 8900"
+                  className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
+                  style={{
+                    borderColor: errors.phone
+                      ? "#ef4444"
+                      : "var(--color-border)",
+                    backgroundColor: "var(--color-background)",
+                    color: "var(--color-foreground)",
+                  }}
+                />
+              </div>
+              {errors.phone && (
+                <p className="text-xs" style={{ color: "#ef4444" }}>
+                  {errors.phone.message}
+                </p>
+              )}
+            </div>
 
-          {/* Password */}
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Password</label>
-            <input
-              type="password"
-              required
-              value={form.password}
-              placeholder="Min. 6 characters"
-              onChange={(e) => handleChange("password", e.target.value)}
-              style={inputStyle}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "var(--accent)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "var(--border-light)")
-              }
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                I am a
+              </label>
+              <div className="flex gap-3">
+                {(["PROVIDER", "WORKER"] as const).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setValue("role", role)}
+                    className="px-4 py-1.5 rounded-full text-xs font-medium border transition-all"
+                    style={{
+                      backgroundColor:
+                        selectedRole === role
+                          ? "var(--color-primary)"
+                          : "var(--color-background)",
+                      color:
+                        selectedRole === role
+                          ? "#ffffff"
+                          : "var(--color-neutral-600)",
+                      borderColor:
+                        selectedRole === role
+                          ? "var(--color-primary)"
+                          : "var(--color-border)",
+                    }}
+                  >
+                    {role === "PROVIDER" ? "Project Provider" : "Worker"}
+                  </button>
+                ))}
+              </div>
+              {errors.role && (
+                <p className="text-xs" style={{ color: "#ef4444" }}>
+                  {errors.role.message}
+                </p>
+              )}
+            </div>
 
-          {/* Confirm Password */}
-          <div style={{ marginBottom: "18px" }}>
-            <label style={labelStyle}>Confirm Password</label>
-            <input
-              type="password"
-              required
-              value={form.confirmPassword}
-              placeholder="Repeat your password"
-              onChange={(e) =>
-                handleChange("confirmPassword", e.target.value)
-              }
-              style={inputStyle}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "var(--accent)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "var(--border-light)")
-              }
-            />
-          </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition"
+              style={{ backgroundColor: "var(--color-primary)" }}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Creating account…
+                </span>
+              ) : (
+                "Create Account"
+              )}
+            </button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              background: loading
-                ? "rgba(47,129,247,0.6)"
-                : "var(--accent)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              padding: "11px",
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "background 0.15s",
-              fontFamily: "inherit",
-              letterSpacing: "0.1px",
-            }}
-            onMouseEnter={(e) => {
-              if (!loading)
-                (e.target as HTMLButtonElement).style.background =
-                  "var(--accent-hover)";
-            }}
-            onMouseLeave={(e) => {
-              if (!loading)
-                (e.target as HTMLButtonElement).style.background =
-                  "var(--accent)";
-            }}
+          <p
+            className="mt-6 text-center text-sm"
+            style={{ color: "var(--color-muted-foreground)" }}
           >
-            {loading ? "Creating account…" : "Create Account"}
-          </button>
-        </form>
-
-        <p
-          style={{
-            textAlign: "center",
-            marginTop: "20px",
-            fontSize: "13px",
-            color: "var(--text-secondary)",
-          }}
-        >
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            style={{
-              color: "var(--accent)",
-              fontWeight: 500,
-              textDecoration: "none",
-            }}
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
-
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        input::placeholder { color: var(--text-muted); }
-      `}</style>
+            Already have an account?{" "}
+            <a
+              href="/login"
+              className="font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
+              Sign in
+            </a>
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }
