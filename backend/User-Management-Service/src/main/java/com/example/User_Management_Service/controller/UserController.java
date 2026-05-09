@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,5 +33,11 @@ public class UserController {
                                                @Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(userId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{userId}/profile-image")
+    public ResponseEntity<UserResponse> uploadProfileImage(@PathVariable String userId,
+                                                           @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(userService.uploadProfileImage(userId, file));
     }
 }

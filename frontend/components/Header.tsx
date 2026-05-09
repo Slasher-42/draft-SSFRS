@@ -3,24 +3,63 @@
 import { useEffect, useState } from "react";
 import { Menu, Bell, Sun, Moon } from "lucide-react";
 import { authService } from "@/lib/authService";
+import { userService } from "@/lib/userService";
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const [session, setSession] = useState<{ fullName: string; role: string } | null>(null);
+  const [session, setSession] = useState<{
+    fullName: string;
+    role: string;
+    profileImageUrl: string | null;
+  } | null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    const s = authService.getSession();
-    if (s) setSession({ fullName: s.fullName, role: s.role });
+    const load = async () => {
+      const s = authService.getSession();
+      if (!s) return;
+
+      setSession({
+        fullName: s.fullName,
+        role: s.role,
+        profileImageUrl: s.profileImageUrl ?? null,
+      });
+      setImgError(false);
+
+      if (!s.profileImageUrl) {
+        try {
+          const user = await userService.getUser(s.userId);
+          if (user.profileImageUrl) {
+            authService.updateSessionImage(user.profileImageUrl);
+            setSession((prev) =>
+              prev ? { ...prev, profileImageUrl: user.profileImageUrl } : prev
+            );
+          }
+        } catch {
+          // ignore — header still shows initials
+        }
+      }
+    };
+    load();
 
     const saved = localStorage.getItem("theme");
     if (saved === "dark") {
       document.documentElement.setAttribute("data-theme", "dark");
       setDarkMode(true);
     }
+
+    const handleImageUpdate = (e: Event) => {
+      const url = (e as CustomEvent<string>).detail ?? null;
+      setSession((prev) => prev ? { ...prev, profileImageUrl: url } : prev);
+      setImgError(false);
+    };
+
+    window.addEventListener("profileImageUpdated", handleImageUpdate);
+    return () => window.removeEventListener("profileImageUpdated", handleImageUpdate);
   }, []);
 
   const toggleDarkMode = () => {
@@ -37,14 +76,16 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const formatRole = (role: string) => {
     switch (role) {
-      case "PROVIDER": return "Project Provider";
-      case "WORKER": return "Worker";
-      case "EVALUATOR": return "Evaluator";
+      case "PROVIDER":     return "Project Provider";
+      case "WORKER":       return "Worker";
+      case "EVALUATOR":    return "Evaluator";
       case "REFUND_OFFICE": return "Refund Office";
-      case "ADMIN": return "Administrator";
-      default: return role;
+      case "ADMIN":        return "Administrator";
+      default:             return role;
     }
   };
+
+  const initial = session?.fullName?.charAt(0).toUpperCase() || "U";
 
   return (
     <header
@@ -62,7 +103,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex items-center gap-3 ml-auto">
+      <div className="flex items-center gap-2 ml-auto">
         <button
           onClick={toggleDarkMode}
           className="h-9 w-9 flex items-center justify-center rounded-lg transition"
@@ -70,6 +111,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
         >
           {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
+
+        {/* Avatar — left of bell */}
+        <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: "var(--color-neutral-200)" }}
+        >
+          {session?.profileImageUrl && !imgError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={session.profileImageUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <span
+              className="text-sm font-bold select-none"
+              style={{ color: "var(--color-neutral-600)" }}
+            >
+              {initial}
+            </span>
+          )}
+        </div>
 
         <div className="relative">
           <button

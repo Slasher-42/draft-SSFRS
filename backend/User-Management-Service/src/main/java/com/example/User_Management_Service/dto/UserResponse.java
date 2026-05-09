@@ -20,6 +20,7 @@ public class UserResponse {
     private String role;
     private boolean active;
     private boolean locked;
+    private String profileImageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

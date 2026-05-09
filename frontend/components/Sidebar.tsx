@@ -61,16 +61,42 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
-  const [session, setSession] = useState<{ fullName: string; role: string } | null>(null);
+  const [session, setSession] = useState<{
+    fullName: string;
+    role: string;
+    profileImageUrl: string | null;
+  } | null>(null);
+  const [sidebarImgError, setSidebarImgError] = useState(false);
 
   useEffect(() => {
-    const s = authService.getSession();
-    if (s) setSession({ fullName: s.fullName, role: s.role });
+    const load = () => {
+      const s = authService.getSession();
+      if (s) {
+        setSession({
+          fullName: s.fullName,
+          role: s.role,
+          profileImageUrl: s.profileImageUrl ?? null,
+        });
+        setSidebarImgError(false);
+      }
+    };
+    load();
+
+    const handleImageUpdate = (e: Event) => {
+      const url = (e as CustomEvent<string>).detail ?? null;
+      setSession((prev) => prev ? { ...prev, profileImageUrl: url } : prev);
+      setSidebarImgError(false);
+    };
+
+    window.addEventListener("profileImageUpdated", handleImageUpdate);
 
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    return () => {
+      window.removeEventListener("profileImageUpdated", handleImageUpdate);
+      window.removeEventListener("resize", check);
+    };
   }, []);
 
   const navItems = getNavItems(session?.role || "");
@@ -182,14 +208,24 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         >
           {collapsed ? (
             <div className="flex justify-center">
-              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[#4A4A4A]">
-                <span className="text-white font-bold text-sm">{initial}</span>
+              <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#4A4A4A]">
+                {session?.profileImageUrl && !sidebarImgError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={session.profileImageUrl} alt="" className="h-full w-full object-cover" onError={() => setSidebarImgError(true)} />
+                ) : (
+                  <span className="text-white font-bold text-sm select-none">{initial}</span>
+                )}
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[#4A4A4A] flex-shrink-0">
-                <span className="text-white font-bold text-sm">{initial}</span>
+              <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#4A4A4A] flex-shrink-0">
+                {session?.profileImageUrl && !sidebarImgError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={session.profileImageUrl} alt="" className="h-full w-full object-cover" onError={() => setSidebarImgError(true)} />
+                ) : (
+                  <span className="text-white font-bold text-sm select-none">{initial}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">

@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useId } from "react";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { authService } from "@/lib/authService";
 import { userService, type UserProfile, type WorkerProfile } from "@/lib/userService";
+import ProfileImageUpload from "@/components/ProfileImageUpload";
 
 const EMPTY_WORKER: WorkerProfile = {
   professionalTitle: "",
@@ -127,6 +128,17 @@ export default function WorkerProfilePage() {
           View and manage your account details and identity profile.
         </p>
       </div>
+
+      {session && user && (
+        <ProfileImageUpload
+          userId={session.userId}
+          currentImageUrl={user.profileImageUrl ?? null}
+          fullName={user.fullName}
+          onUploadSuccess={(url) => {
+            setUser((prev) => prev ? { ...prev, profileImageUrl: url } : prev);
+          }}
+        />
+      )}
 
       {/* Account Information */}
       <motion.div
@@ -421,3 +433,4 @@ export default function WorkerProfilePage() {
     </div>
   );
 }
+

@@ -18,6 +18,7 @@ export interface UserProfile {
   role: string;
   active: boolean;
   locked: boolean;
+  profileImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,6 +94,15 @@ export const userService = {
   async saveIdentityProfile(role: string, userId: string, data: unknown) {
     const path = roleToPath(role);
     const res = await api.put(`/api/profiles/${path}/${userId}`, data);
+    return res.data;
+  },
+
+  async uploadProfileImage(userId: string, file: File): Promise<UserProfile> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await api.post<UserProfile>(`/api/users/${userId}/profile-image`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return res.data;
   },
 };

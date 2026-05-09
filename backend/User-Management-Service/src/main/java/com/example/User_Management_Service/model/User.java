@@ -47,6 +47,8 @@ public class User {
     @Builder.Default
     private int failedLoginAttempts = 0;
 
+    private String profileImageUrl;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

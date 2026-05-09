@@ -13,6 +13,7 @@ import com.example.User_Management_Service.model.User;
 import com.example.User_Management_Service.repository.UserRepository;
 import com.example.User_Management_Service.security.JwtTokenProvider;
 import com.example.User_Management_Service.service.AuthService;
+import com.example.User_Management_Service.service.S3UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -30,6 +31,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
     private final UserEventPublisher userEventPublisher;
+    private final S3UploadService s3UploadService;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
 
@@ -66,12 +68,17 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtTokenProvider.generateToken(user.getEmail(), user.getRole().name(), user.getId());
 
+        String signedImageUrl = user.getProfileImageUrl() != null
+                ? s3UploadService.generatePresignedUrl(user.getProfileImageUrl())
+                : null;
+
         return LoginResponse.builder()
                 .token(token)
                 .userId(user.getId())
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .fullName(user.getFullName())
+                .profileImageUrl(signedImageUrl)
                 .build();
     }
 
@@ -101,6 +108,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private UserResponse mapToUserResponse(User user) {
+        String signedUrl = user.getProfileImageUrl() != null
+                ? s3UploadService.generatePresignedUrl(user.getProfileImageUrl())
+                : null;
         return UserResponse.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
@@ -109,6 +119,7 @@ public class AuthServiceImpl implements AuthService {
                 .role(user.getRole().name())
                 .active(user.isActive())
                 .locked(user.isLocked())
+                .profileImageUrl(signedUrl)
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

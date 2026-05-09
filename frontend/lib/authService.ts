@@ -11,6 +11,7 @@ export interface LoginResponse {
   email: string;
   role: string;
   fullName: string;
+  profileImageUrl: string | null;
 }
 
 export interface RegisterRequest {
@@ -56,6 +57,18 @@ export const authService = {
       return JSON.parse(user) as LoginResponse;
     } catch {
       return null;
+    }
+  },
+
+  updateSessionImage(profileImageUrl: string | null) {
+    const raw = localStorage.getItem("user");
+    if (!raw) return;
+    try {
+      const user = JSON.parse(raw) as LoginResponse;
+      user.profileImageUrl = profileImageUrl;
+      localStorage.setItem("user", JSON.stringify(user));
+    } catch {
+      // ignore
     }
   },
 

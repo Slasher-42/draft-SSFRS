@@ -9,12 +9,14 @@ import com.example.User_Management_Service.exception.UserNotFoundException;
 import com.example.User_Management_Service.kafka.UserEventPublisher;
 import com.example.User_Management_Service.model.User;
 import com.example.User_Management_Service.repository.UserRepository;
+import com.example.User_Management_Service.service.S3UploadService;
 import com.example.User_Management_Service.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +28,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserEventPublisher userEventPublisher;
+    private final S3UploadService s3UploadService;
 
     @Override
     public UserResponse getUserById(String userId) {
@@ -112,12 +115,26 @@ public class UserServiceImpl implements UserService {
         userEventPublisher.publishUserDeleted(user.getId());
     }
 
+    @Override
+    @Transactional
+    public UserResponse uploadProfileImage(String userId, MultipartFile file) {
+        User user = findUserById(userId);
+        s3UploadService.deleteProfileImage(user.getProfileImageUrl());
+        String key = s3UploadService.uploadProfileImage(userId, file);
+        user.setProfileImageUrl(key);
+        userRepository.save(user);
+        return mapToUserResponse(user);
+    }
+
     private User findUserById(String userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
     }
 
     private UserResponse mapToUserResponse(User user) {
+        String signedUrl = user.getProfileImageUrl() != null
+                ? s3UploadService.generatePresignedUrl(user.getProfileImageUrl())
+                : null;
         return UserResponse.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
@@ -126,6 +143,7 @@ public class UserServiceImpl implements UserService {
                 .role(user.getRole().name())
                 .active(user.isActive())
                 .locked(user.isLocked())
+                .profileImageUrl(signedUrl)
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
