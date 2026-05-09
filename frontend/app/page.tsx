@@ -12,8 +12,8 @@ export default function RootPage() {
     if (!authService.isAuthenticated()) {
       router.replace("/login");
     } else {
-      const { role } = authService.getSession();
-      router.replace(authService.getDashboardRoute(role || ""));
+      const session = authService.getSession();
+      router.replace(authService.getDashboardPath(session?.role || ""));
     }
   }, [router]);
 
