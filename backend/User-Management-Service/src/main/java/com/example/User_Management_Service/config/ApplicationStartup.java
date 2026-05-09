@@ -23,7 +23,7 @@ public class ApplicationStartup {
                 userRepository.save(User.builder()
                         .fullName("Cedrick Ngabonziza Kennedy")
                         .email("cedrickngabo03@gmail.com")
-                        .password(passwordEncoder.encode("Novemba@42"))
+                        .password(passwordEncoder.encode("Admin@123"))
                         .phone("+250788000001")
                         .role(Role.ADMIN)
                         .active(true)
