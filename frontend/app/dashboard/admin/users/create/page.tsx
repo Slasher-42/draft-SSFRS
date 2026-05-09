@@ -12,7 +12,7 @@ export default function CreateAccountPage() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
-    password: "",
+    temporaryPassword: "",
     role: "EVALUATOR" as "EVALUATOR" | "REFUND_OFFICE",
     phone: "",
   });
@@ -33,7 +33,7 @@ export default function CreateAccountPage() {
       setForm({
         fullName: "",
         email: "",
-        password: "",
+        temporaryPassword: "",
         role: "EVALUATOR",
         phone: "",
       });
@@ -241,9 +241,9 @@ export default function CreateAccountPage() {
                 <input
                   type="password"
                   required
-                  value={form.password}
+                  value={form.temporaryPassword}
                   placeholder="••••••••"
-                  onChange={(e) => handleChange("password", e.target.value)}
+                  onChange={(e) => handleChange("temporaryPassword", e.target.value)}
                   className="w-full rounded-lg border px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 transition"
                   style={{
                     borderColor: "var(--color-border)",

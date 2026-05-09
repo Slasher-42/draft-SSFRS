@@ -6,21 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
-  PlusCircle,
-  FolderOpen,
-  AlertCircle,
-  ClipboardList,
   User,
-  Upload,
-  Briefcase,
-  MessageSquare,
-  CheckSquare,
-  CreditCard,
-  Receipt,
   Users,
-  ClipboardCheck,
-  ScrollText,
-  SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -38,44 +25,27 @@ function getNavItems(role: string): NavItem[] {
     case "PROVIDER":
       return [
         { label: "Dashboard", href: "/dashboard/provider", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Post Project", href: "/dashboard/provider/post-project", icon: <PlusCircle className="h-5 w-5 flex-shrink-0" /> },
-        { label: "My Projects", href: "/dashboard/provider/projects", icon: <FolderOpen className="h-5 w-5 flex-shrink-0" /> },
-        { label: "File a Claim", href: "/dashboard/provider/file-claim", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
-        { label: "My Claims", href: "/dashboard/provider/claims", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/provider/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "WORKER":
       return [
         { label: "Dashboard", href: "/dashboard/worker", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Submit CV", href: "/dashboard/worker/submit-cv", icon: <Upload className="h-5 w-5 flex-shrink-0" /> },
-        { label: "My Assignments", href: "/dashboard/worker/assignments", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Claim Responses", href: "/dashboard/worker/claim-responses", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/worker/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "EVALUATOR":
       return [
         { label: "Dashboard", href: "/dashboard/evaluator", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Assigned Claims", href: "/dashboard/evaluator/claims", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" /> },
-        { label: "My Decisions", href: "/dashboard/evaluator/decisions", icon: <CheckSquare className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/evaluator/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "REFUND_OFFICE":
       return [
         { label: "Dashboard", href: "/dashboard/refund-office", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Refund Orders", href: "/dashboard/refund-office/orders", icon: <CreditCard className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Refund Records", href: "/dashboard/refund-office/records", icon: <Receipt className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/refund-office/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "ADMIN":
       return [
         { label: "Dashboard", href: "/dashboard/admin", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Assign Claims", href: "/dashboard/admin/assign-claims", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
-        { label: "All Projects", href: "/dashboard/admin/projects", icon: <FolderOpen className="h-5 w-5 flex-shrink-0" /> },
-        { label: "All Claims", href: "/dashboard/admin/claims", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Refund Records", href: "/dashboard/admin/refunds", icon: <Receipt className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Audit Logs", href: "/dashboard/admin/audit-logs", icon: <ScrollText className="h-5 w-5 flex-shrink-0" /> },
-        { label: "AI Configuration", href: "/dashboard/admin/ai-config", icon: <SlidersHorizontal className="h-5 w-5 flex-shrink-0" /> },
       ];
     default:
       return [];

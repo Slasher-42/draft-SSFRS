@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { User, Phone, Mail, Shield } from "lucide-react";
+import { User, Mail, Shield } from "lucide-react";
 import Link from "next/link";
 import { authService } from "@/lib/authService";
 
-export default function ProviderDashboard() {
+export default function EvaluatorDashboard() {
   const [session, setSession] = useState<{
     fullName: string;
     email: string;
@@ -22,7 +22,7 @@ export default function ProviderDashboard() {
     <div className="space-y-6">
       <div>
         <h3 style={{ color: "var(--color-primary-800)" }}>
-          Welcome back, {session?.fullName || "Provider"}
+          Welcome back, {session?.fullName || "Evaluator"}
         </h3>
         <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
           Manage your account and profile from here.
@@ -58,7 +58,7 @@ export default function ProviderDashboard() {
             <div className="flex items-center gap-3">
               <Shield className="h-4 w-4 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
               <span className="text-sm" style={{ color: "var(--color-foreground)" }}>
-                Project Provider
+                Evaluator
               </span>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function ProviderDashboard() {
           </h5>
           <div className="space-y-2">
             <Link
-              href="/dashboard/provider/profile"
+              href="/dashboard/evaluator/profile"
               className="flex items-center gap-3 rounded-lg p-3 transition"
               style={{
                 backgroundColor: "var(--color-neutral-50)",
@@ -88,17 +88,6 @@ export default function ProviderDashboard() {
             >
               <User className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
               <span className="text-sm font-medium">View &amp; Edit My Profile</span>
-            </Link>
-            <Link
-              href="/dashboard/provider/profile#password"
-              className="flex items-center gap-3 rounded-lg p-3 transition"
-              style={{
-                backgroundColor: "var(--color-neutral-50)",
-                color: "var(--color-foreground)",
-              }}
-            >
-              <Phone className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-              <span className="text-sm font-medium">Change Password</span>
             </Link>
           </div>
         </motion.div>

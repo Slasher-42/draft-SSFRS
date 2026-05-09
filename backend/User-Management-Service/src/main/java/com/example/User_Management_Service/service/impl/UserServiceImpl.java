@@ -68,11 +68,13 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException("An account with this email already exists.");
         }
+        String phone = (request.getPhone() != null && !request.getPhone().isBlank())
+                ? request.getPhone() : "";
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getTemporaryPassword()))
-                .phone(request.getPhone())
+                .phone(phone)
                 .role(request.getRole())
                 .build();
         userRepository.save(user);

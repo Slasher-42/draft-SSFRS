@@ -21,7 +21,6 @@ public class CreateAdminUserRequest {
     @NotBlank(message = "Temporary password is required")
     private String temporaryPassword;
 
-    @NotBlank(message = "Phone is required")
     private String phone;
 
     @NotNull(message = "Role is required")
