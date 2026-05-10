@@ -49,6 +49,12 @@ public class User {
 
     private String profileImageUrl;
 
+    private String otpCode;
+    private LocalDateTime otpExpiry;
+
+    private String passwordResetToken;
+    private LocalDateTime passwordResetExpiry;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

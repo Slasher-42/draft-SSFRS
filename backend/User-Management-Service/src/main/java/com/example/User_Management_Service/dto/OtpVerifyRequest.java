@@ -7,14 +7,14 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class LoginRequest {
+public class OtpVerifyRequest {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be valid")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    private String password;
+    @NotBlank(message = "OTP code is required")
+    private String otp;
 
     private String deviceToken;
 }

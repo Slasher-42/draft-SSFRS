@@ -3,6 +3,7 @@ import api from "./api";
 export interface LoginRequest {
   email: string;
   password: string;
+  deviceToken?: string;
 }
 
 export interface LoginResponse {
@@ -12,6 +13,14 @@ export interface LoginResponse {
   role: string;
   fullName: string;
   profileImageUrl: string | null;
+  deviceToken: string | null;
+  requiresOtp: boolean;
+}
+
+export interface OtpVerifyRequest {
+  email: string;
+  otp: string;
+  deviceToken?: string;
 }
 
 export interface RegisterRequest {
@@ -34,9 +43,32 @@ export interface UserResponse {
   updatedAt: string;
 }
 
+function getOrCreateDeviceToken(): string {
+  let token = localStorage.getItem("deviceToken");
+  if (!token) {
+    token = crypto.randomUUID();
+    localStorage.setItem("deviceToken", token);
+  }
+  return token;
+}
+
 export const authService = {
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const res = await api.post<LoginResponse>("/api/auth/login", data);
+    const deviceToken = getOrCreateDeviceToken();
+    const res = await api.post<LoginResponse>("/api/auth/login", {
+      ...data,
+      deviceToken,
+    });
+    return res.data;
+  },
+
+  async verifyOtp(email: string, otp: string): Promise<LoginResponse> {
+    const deviceToken = getOrCreateDeviceToken();
+    const res = await api.post<LoginResponse>("/api/auth/verify-otp", {
+      email,
+      otp,
+      deviceToken,
+    });
     return res.data;
   },
 
@@ -45,9 +77,20 @@ export const authService = {
     return res.data;
   },
 
+  async forgotPassword(email: string): Promise<void> {
+    await api.post("/api/auth/forgot-password", { email });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await api.post("/api/auth/reset-password", { token, newPassword });
+  },
+
   saveSession(data: LoginResponse) {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data));
+    if (data.deviceToken) {
+      localStorage.setItem("deviceToken", data.deviceToken);
+    }
   },
 
   getSession(): LoginResponse | null {
@@ -73,7 +116,8 @@ export const authService = {
   },
 
   logout() {
-    localStorage.clear();
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     window.location.href = "/login";
   },
 
