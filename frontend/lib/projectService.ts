@@ -1,11 +1,19 @@
 import executionApi from "./executionApi";
 
+export interface ProjectImageResponse {
+  id: string;
+  imageUrl: string;
+  description: string;
+  displayOrder: number;
+}
+
 export interface CreateProjectRequest {
   title: string;
   scopeOfWork: string;
   requiredSkills: string;
-  deadline: string; // ISO date string yyyy-MM-dd
+  deadline: string;
   budget: number;
+  images?: { file: File; description: string }[];
 }
 
 export interface ProjectResponse {
@@ -18,6 +26,7 @@ export interface ProjectResponse {
   budget: number;
   status: "OPEN" | "ASSIGNED" | "COMPLETED" | "FAILED";
   assignedWorkerId: string | null;
+  images: ProjectImageResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -34,7 +43,23 @@ export interface RankedWorkerResponse {
 
 export const projectService = {
   async createProject(data: CreateProjectRequest): Promise<ProjectResponse> {
-    const res = await executionApi.post<ProjectResponse>("/api/projects", data);
+    const form = new FormData();
+    form.append("title", data.title);
+    form.append("scopeOfWork", data.scopeOfWork);
+    form.append("requiredSkills", data.requiredSkills);
+    form.append("deadline", data.deadline);
+    form.append("budget", String(data.budget));
+
+    if (data.images && data.images.length > 0) {
+      data.images.forEach((img) => {
+        form.append("images", img.file);
+        form.append("imageDescriptions", img.description);
+      });
+    }
+
+    const res = await executionApi.post<ProjectResponse>("/api/projects", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return res.data;
   },
 

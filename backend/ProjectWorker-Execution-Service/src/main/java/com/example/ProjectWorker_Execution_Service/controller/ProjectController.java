@@ -1,17 +1,19 @@
 package com.example.ProjectWorker_Execution_Service.controller;
 
-import com.example.ProjectWorker_Execution_Service.dto.CreateProjectRequest;
 import com.example.ProjectWorker_Execution_Service.dto.ProjectResponse;
 import com.example.ProjectWorker_Execution_Service.dto.RankedWorkerResponse;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.ProjectService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -21,11 +23,19 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
-    @PostMapping
+    @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ProjectResponse> createProject(
-            @Valid @RequestBody CreateProjectRequest request,
+            @RequestParam("title") String title,
+            @RequestParam("scopeOfWork") String scopeOfWork,
+            @RequestParam("requiredSkills") String requiredSkills,
+            @RequestParam("deadline") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline,
+            @RequestParam("budget") BigDecimal budget,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "imageDescriptions", required = false) List<String> imageDescriptions,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.createProject(request, principal));
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                projectService.createProject(title, scopeOfWork, requiredSkills,
+                        deadline, budget, images, imageDescriptions, principal));
     }
 
     @GetMapping("/my")

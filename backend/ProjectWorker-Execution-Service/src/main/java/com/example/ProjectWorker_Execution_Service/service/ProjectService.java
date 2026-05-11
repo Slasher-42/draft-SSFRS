@@ -1,15 +1,20 @@
 package com.example.ProjectWorker_Execution_Service.service;
 
-import com.example.ProjectWorker_Execution_Service.dto.CreateProjectRequest;
 import com.example.ProjectWorker_Execution_Service.dto.ProjectResponse;
 import com.example.ProjectWorker_Execution_Service.dto.RankedWorkerResponse;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface ProjectService {
 
-    ProjectResponse createProject(CreateProjectRequest request, UserPrincipal principal);
+    ProjectResponse createProject(String title, String scopeOfWork, String requiredSkills,
+                                   LocalDate deadline, BigDecimal budget,
+                                   List<MultipartFile> images, List<String> imageDescriptions,
+                                   UserPrincipal principal);
 
     List<ProjectResponse> getMyProjects(UserPrincipal principal);
 

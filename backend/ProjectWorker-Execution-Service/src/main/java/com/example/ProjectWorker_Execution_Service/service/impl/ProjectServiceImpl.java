@@ -1,22 +1,30 @@
 package com.example.ProjectWorker_Execution_Service.service.impl;
 
-import com.example.ProjectWorker_Execution_Service.dto.CreateProjectRequest;
+import com.example.ProjectWorker_Execution_Service.dto.ProjectImageResponse;
 import com.example.ProjectWorker_Execution_Service.dto.ProjectResponse;
 import com.example.ProjectWorker_Execution_Service.dto.RankedWorkerResponse;
 import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.exception.ResourceNotFoundException;
 import com.example.ProjectWorker_Execution_Service.kafka.ExecutionEventPublisher;
 import com.example.ProjectWorker_Execution_Service.model.Project;
+import com.example.ProjectWorker_Execution_Service.model.ProjectImage;
 import com.example.ProjectWorker_Execution_Service.model.ProjectStatus;
 import com.example.ProjectWorker_Execution_Service.model.WorkerCv;
+import com.example.ProjectWorker_Execution_Service.repository.ProjectImageRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ProjectRepository;
 import com.example.ProjectWorker_Execution_Service.repository.WorkerCvRepository;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.ProjectService;
+import com.example.ProjectWorker_Execution_Service.service.S3UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,24 +34,33 @@ import java.util.stream.Collectors;
 public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ProjectImageRepository projectImageRepository;
     private final WorkerCvRepository workerCvRepository;
+    private final S3UploadService s3UploadService;
     private final ExecutionEventPublisher eventPublisher;
 
     @Override
     @Transactional
-    public ProjectResponse createProject(CreateProjectRequest request, UserPrincipal principal) {
+    public ProjectResponse createProject(String title, String scopeOfWork, String requiredSkills,
+                                          LocalDate deadline, BigDecimal budget,
+                                          List<MultipartFile> images, List<String> imageDescriptions,
+                                          UserPrincipal principal) {
         if (!"PROVIDER".equals(principal.getRole())) {
             throw new ForbiddenException("Only project providers can post projects.");
         }
+
         Project project = Project.builder()
                 .providerId(principal.getUserId())
-                .title(request.getTitle())
-                .scopeOfWork(request.getScopeOfWork())
-                .requiredSkills(request.getRequiredSkills())
-                .deadline(request.getDeadline())
-                .budget(request.getBudget())
+                .title(title)
+                .scopeOfWork(scopeOfWork)
+                .requiredSkills(requiredSkills)
+                .deadline(deadline)
+                .budget(budget)
                 .build();
         projectRepository.save(project);
+
+        saveImages(project.getId(), images, imageDescriptions);
+
         eventPublisher.publishProjectPosted(project.getId(), principal.getUserId());
         return toResponse(project);
     }
@@ -137,6 +154,31 @@ public class ProjectServiceImpl implements ProjectService {
         return toResponse(project);
     }
 
+    private void saveImages(String projectId, List<MultipartFile> images, List<String> descriptions) {
+        if (images == null || images.isEmpty()) return;
+        List<ProjectImage> toSave = new ArrayList<>();
+        for (int i = 0; i < images.size(); i++) {
+            MultipartFile file = images.get(i);
+            if (file == null || file.isEmpty()) continue;
+            String description = (descriptions != null && i < descriptions.size()
+                    && descriptions.get(i) != null && !descriptions.get(i).isBlank())
+                    ? descriptions.get(i)
+                    : "Supporting image " + (i + 1);
+            try {
+                String key = s3UploadService.uploadFile(file, "project-images");
+                toSave.add(ProjectImage.builder()
+                        .projectId(projectId)
+                        .imageKey(key)
+                        .description(description)
+                        .displayOrder(i)
+                        .build());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to upload image: " + file.getOriginalFilename());
+            }
+        }
+        projectImageRepository.saveAll(toSave);
+    }
+
     private Project findProject(String projectId) {
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found."));
@@ -151,6 +193,17 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private ProjectResponse toResponse(Project p) {
+        List<ProjectImageResponse> images = projectImageRepository
+                .findAllByProjectIdOrderByDisplayOrderAsc(p.getId())
+                .stream()
+                .map(img -> ProjectImageResponse.builder()
+                        .id(img.getId())
+                        .imageUrl(s3UploadService.generatePresignedUrl(img.getImageKey()))
+                        .description(img.getDescription())
+                        .displayOrder(img.getDisplayOrder())
+                        .build())
+                .collect(Collectors.toList());
+
         return ProjectResponse.builder()
                 .id(p.getId())
                 .providerId(p.getProviderId())
@@ -161,6 +214,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .budget(p.getBudget())
                 .status(p.getStatus().name())
                 .assignedWorkerId(p.getAssignedWorkerId())
+                .images(images)
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();

@@ -6,6 +6,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -19,6 +20,7 @@ public class ProjectResponse {
     private BigDecimal budget;
     private String status;
     private String assignedWorkerId;
+    private List<ProjectImageResponse> images;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
