@@ -6,7 +6,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "trusted_devices")
+@Table(
+    name = "trusted_devices",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "device_token"})
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,7 +24,7 @@ public class TrustedDevice {
     @Column(nullable = false)
     private String userId;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String deviceToken;
 
     @Column(nullable = false, updatable = false)

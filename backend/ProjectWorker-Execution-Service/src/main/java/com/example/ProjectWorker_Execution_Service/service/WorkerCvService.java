@@ -1,0 +1,16 @@
+package com.example.ProjectWorker_Execution_Service.service;
+
+import com.example.ProjectWorker_Execution_Service.dto.WorkerCvResponse;
+import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
+import org.springframework.web.multipart.MultipartFile;
+
+public interface WorkerCvService {
+
+    WorkerCvResponse submitOrUpdateCv(String specialization, int yearsOfExperience,
+                                       String additionalCredentials, MultipartFile cvFile,
+                                       UserPrincipal principal);
+
+    WorkerCvResponse getMyCv(UserPrincipal principal);
+
+    WorkerCvResponse getWorkerCv(String workerId);
+}

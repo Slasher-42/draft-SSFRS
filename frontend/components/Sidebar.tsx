@@ -11,6 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Briefcase,
+  FileText,
+  ClipboardList,
+  AlertCircle,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -26,11 +30,16 @@ function getNavItems(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/dashboard/provider", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/provider/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Projects", href: "/dashboard/provider/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My Claims", href: "/dashboard/provider/claims", icon: <FileText className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "WORKER":
       return [
         { label: "Dashboard", href: "/dashboard/worker", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/worker/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+        { label: "My CV", href: "/dashboard/worker/cv", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Assigned Projects", href: "/dashboard/worker/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Claims Against Me", href: "/dashboard/worker/claims", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "EVALUATOR":
       return [

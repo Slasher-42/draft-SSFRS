@@ -1,0 +1,78 @@
+package com.example.ProjectWorker_Execution_Service.controller;
+
+import com.example.ProjectWorker_Execution_Service.dto.CreateProjectRequest;
+import com.example.ProjectWorker_Execution_Service.dto.ProjectResponse;
+import com.example.ProjectWorker_Execution_Service.dto.RankedWorkerResponse;
+import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
+import com.example.ProjectWorker_Execution_Service.service.ProjectService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+public class ProjectController {
+
+    private final ProjectService projectService;
+
+    @PostMapping
+    public ResponseEntity<ProjectResponse> createProject(
+            @Valid @RequestBody CreateProjectRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.createProject(request, principal));
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<ProjectResponse>> getMyProjects(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.getMyProjects(principal));
+    }
+
+    @GetMapping("/assigned")
+    public ResponseEntity<List<ProjectResponse>> getAssignedProjects(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.getAssignedProjects(principal));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ProjectResponse> getProject(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.getProjectById(id, principal));
+    }
+
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<ProjectResponse> markCompleted(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.markCompleted(id, principal));
+    }
+
+    @PatchMapping("/{id}/fail")
+    public ResponseEntity<ProjectResponse> markFailed(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.markFailed(id, principal));
+    }
+
+    @GetMapping("/{id}/candidates")
+    public ResponseEntity<List<RankedWorkerResponse>> getCandidates(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.getRankedCandidates(id, principal));
+    }
+
+    @PostMapping("/{id}/assign/{workerId}")
+    public ResponseEntity<ProjectResponse> assignWorker(
+            @PathVariable String id,
+            @PathVariable String workerId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.assignWorker(id, workerId, principal));
+    }
+}
