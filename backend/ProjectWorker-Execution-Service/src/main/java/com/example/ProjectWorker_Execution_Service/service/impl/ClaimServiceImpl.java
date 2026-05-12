@@ -151,6 +151,15 @@ public class ClaimServiceImpl implements ClaimService {
         return toResponse(claim);
     }
 
+    @Override
+    @Transactional
+    public void updateAiMediationReport(String claimId, String report) {
+        claimRepository.findById(claimId).ifPresent(claim -> {
+            claim.setAiMediationReport(report);
+            claimRepository.save(claim);
+        });
+    }
+
     private Claim findClaim(String claimId) {
         return claimRepository.findById(claimId)
                 .orElseThrow(() -> new ResourceNotFoundException("Claim not found."));

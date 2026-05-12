@@ -44,6 +44,14 @@ public class WorkerCv {
     @Builder.Default
     private double ratingScore = 0.0;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private int completedProjects = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private int pastFailures = 0;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

@@ -13,4 +13,10 @@ public interface WorkerCvService {
     WorkerCvResponse getMyCv(UserPrincipal principal);
 
     WorkerCvResponse getWorkerCv(String workerId);
+
+    void updateRatingScore(String workerId, double score);
+
+    void incrementCompletedProjects(String workerId);
+
+    void incrementPastFailures(String workerId);
 }

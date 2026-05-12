@@ -17,16 +17,18 @@ import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.ProjectService;
 import com.example.ProjectWorker_Execution_Service.service.S3UploadService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,6 +40,11 @@ public class ProjectServiceImpl implements ProjectService {
     private final WorkerCvRepository workerCvRepository;
     private final S3UploadService s3UploadService;
     private final ExecutionEventPublisher eventPublisher;
+
+    @Value("${ai.service.base-url:http://localhost:8083}")
+    private String aiServiceBaseUrl;
+
+    private final RestClient restClient = RestClient.create();
 
     @Override
     @Transactional
@@ -95,8 +102,16 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStatus() != ProjectStatus.ASSIGNED) {
             throw new IllegalArgumentException("Only assigned projects can be marked as completed.");
         }
+        String assignedWorker = project.getAssignedWorkerId();
         project.setStatus(ProjectStatus.COMPLETED);
         projectRepository.save(project);
+        // Update worker's completed project count
+        if (assignedWorker != null) {
+            workerCvRepository.findByWorkerId(assignedWorker).ifPresent(cv -> {
+                cv.setCompletedProjects(cv.getCompletedProjects() + 1);
+                workerCvRepository.save(cv);
+            });
+        }
         eventPublisher.publishProjectCompleted(projectId);
         return toResponse(project);
     }
@@ -116,34 +131,73 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public List<RankedWorkerResponse> getRankedCandidates(String projectId, UserPrincipal principal) {
-        Project project = findAndVerifyOwner(projectId, principal);
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can view ranked candidates.");
+        }
+        Project project = findProject(projectId);
         List<WorkerCv> allCvs = workerCvRepository.findAll();
-        return allCvs.stream()
-                .map(cv -> {
-                    double rank = cv.getRatingScore() * 5;
-                    rank += cv.getYearsOfExperience() * 2.0;
-                    if (project.getRequiredSkills().toLowerCase()
-                            .contains(cv.getSpecialization().toLowerCase())) {
-                        rank += 20;
-                    }
-                    return RankedWorkerResponse.builder()
-                            .workerId(cv.getWorkerId())
-                            .workerName(cv.getWorkerName())
-                            .workerEmail(cv.getWorkerEmail())
-                            .specialization(cv.getSpecialization())
+        if (allCvs.isEmpty()) return List.of();
+
+        // Build request body for AI Service
+        List<Map<String, Object>> workers = allCvs.stream().map(cv -> {
+            Map<String, Object> w = new HashMap<>();
+            w.put("worker_id", cv.getWorkerId());
+            w.put("worker_name", cv.getWorkerName());
+            w.put("worker_email", cv.getWorkerEmail());
+            w.put("specialization", cv.getSpecialization());
+            w.put("years_of_experience", cv.getYearsOfExperience());
+            w.put("additional_credentials", cv.getAdditionalCredentials());
+            w.put("rating_score", cv.getRatingScore());
+            return w;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("project_id", projectId);
+        body.put("title", project.getTitle());
+        body.put("scope_of_work", project.getScopeOfWork());
+        body.put("required_skills", project.getRequiredSkills());
+        body.put("workers", workers);
+
+        try {
+            Map<String, Object> aiResponse = restClient.post()
+                    .uri(aiServiceBaseUrl + "/api/ai/matching/rank-candidates")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> ranked = (List<Map<String, Object>>) aiResponse.get("ranked_workers");
+            return ranked.stream().map(r -> RankedWorkerResponse.builder()
+                    .workerId((String) r.get("worker_id"))
+                    .workerName((String) r.get("worker_name"))
+                    .workerEmail((String) r.get("worker_email"))
+                    .specialization((String) r.get("specialization"))
+                    .yearsOfExperience(((Number) r.get("years_of_experience")).intValue())
+                    .ratingScore(((Number) r.get("rating_score")).doubleValue())
+                    .rankScore(((Number) r.get("match_score")).doubleValue())
+                    .build()).collect(Collectors.toList());
+        } catch (Exception e) {
+            // Fallback: basic ranking by ratingScore if AI service unavailable
+            return allCvs.stream()
+                    .sorted(Comparator.comparingDouble(WorkerCv::getRatingScore).reversed())
+                    .map(cv -> RankedWorkerResponse.builder()
+                            .workerId(cv.getWorkerId()).workerName(cv.getWorkerName())
+                            .workerEmail(cv.getWorkerEmail()).specialization(cv.getSpecialization())
                             .yearsOfExperience(cv.getYearsOfExperience())
-                            .ratingScore(cv.getRatingScore())
-                            .rankScore(rank)
-                            .build();
-                })
-                .sorted(Comparator.comparingDouble(RankedWorkerResponse::getRankScore).reversed())
-                .collect(Collectors.toList());
+                            .ratingScore(cv.getRatingScore()).rankScore(cv.getRatingScore() * 10)
+                            .build())
+                    .collect(Collectors.toList());
+        }
     }
 
     @Override
     @Transactional
     public ProjectResponse assignWorker(String projectId, String workerId, UserPrincipal principal) {
-        Project project = findAndVerifyOwner(projectId, principal);
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can assign workers to projects.");
+        }
+        Project project = findProject(projectId);
         if (project.getStatus() != ProjectStatus.OPEN) {
             throw new IllegalArgumentException("Only open projects can have a worker assigned.");
         }

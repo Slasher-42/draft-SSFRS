@@ -55,6 +55,7 @@ function getNavItems(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/dashboard/admin", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Project Assignment", href: "/dashboard/admin/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
       ];
     default:
       return [];

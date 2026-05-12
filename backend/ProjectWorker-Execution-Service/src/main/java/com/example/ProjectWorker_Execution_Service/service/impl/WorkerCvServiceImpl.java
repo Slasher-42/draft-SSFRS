@@ -81,6 +81,33 @@ public class WorkerCvServiceImpl implements WorkerCvService {
         return toResponse(cv);
     }
 
+    @Override
+    @Transactional
+    public void updateRatingScore(String workerId, double score) {
+        workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
+            cv.setRatingScore(score);
+            workerCvRepository.save(cv);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void incrementCompletedProjects(String workerId) {
+        workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
+            cv.setCompletedProjects(cv.getCompletedProjects() + 1);
+            workerCvRepository.save(cv);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void incrementPastFailures(String workerId) {
+        workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
+            cv.setPastFailures(cv.getPastFailures() + 1);
+            workerCvRepository.save(cv);
+        });
+    }
+
     private WorkerCvResponse toResponse(WorkerCv cv) {
         return WorkerCvResponse.builder()
                 .id(cv.getId())

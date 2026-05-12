@@ -5,11 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Calendar, DollarSign, Star, User,
+  ArrowLeft, Calendar, DollarSign, User,
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { projectService, ProjectResponse, RankedWorkerResponse, ProjectImageResponse } from "@/lib/projectService";
+import { projectService, ProjectResponse, ProjectImageResponse } from "@/lib/projectService";
 
 const statusColor: Record<string, string> = {
   OPEN: "#22c55e", ASSIGNED: "#3b82f6", COMPLETED: "#8b5cf6", FAILED: "#ef4444",
@@ -19,8 +19,6 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [project, setProject] = useState<ProjectResponse | null>(null);
-  const [candidates, setCandidates] = useState<RankedWorkerResponse[]>([]);
-  const [showCandidates, setShowCandidates] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -44,31 +42,6 @@ export default function ProjectDetailPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [lightboxIndex, project?.images?.length]);
-
-  const loadCandidates = async () => {
-    if (showCandidates) { setShowCandidates(false); return; }
-    try {
-      const data = await projectService.getCandidates(id);
-      setCandidates(data);
-      setShowCandidates(true);
-    } catch {
-      toast.error("Failed to load candidates.");
-    }
-  };
-
-  const handleAssign = async (workerId: string) => {
-    setActionLoading(true);
-    try {
-      const updated = await projectService.assignWorker(id, workerId);
-      setProject(updated);
-      setShowCandidates(false);
-      toast.success("Worker assigned successfully!");
-    } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to assign.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleStatusChange = async (action: "complete" | "fail") => {
     setActionLoading(true);
@@ -164,14 +137,16 @@ export default function ProjectDetailPage() {
       )}
 
       {/* Actions */}
+      {project.status === "OPEN" && (
+        <div className="rounded-xl border p-4"
+          style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
+          <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+            This project is open. The system administrator will review AI-ranked candidates and assign the best-matched worker.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
-        {project.status === "OPEN" && (
-          <button onClick={loadCandidates}
-            className="rounded-lg px-4 py-2 text-sm font-medium border transition"
-            style={{ borderColor: "var(--color-border)", color: "var(--color-foreground)", backgroundColor: "var(--color-card)" }}>
-            {showCandidates ? "Hide Candidates" : "View Ranked Candidates"}
-          </button>
-        )}
         {project.status === "ASSIGNED" && (
           <>
             <button onClick={() => handleStatusChange("complete")} disabled={actionLoading}
@@ -194,49 +169,6 @@ export default function ProjectDetailPage() {
           </Link>
         )}
       </div>
-
-      {/* Ranked Candidates */}
-      {showCandidates && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border p-4 space-y-3"
-          style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
-          <h5 className="font-semibold" style={{ color: "var(--color-foreground)" }}>
-            Ranked Candidates ({candidates.length})
-          </h5>
-          {candidates.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-              No workers have submitted CVs yet.
-            </p>
-          ) : (
-            candidates.map((w, i) => (
-              <div key={w.workerId} className="flex items-center gap-4 rounded-lg border p-3"
-                style={{ borderColor: "var(--color-border)" }}>
-                <div className="h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
-                  style={{ backgroundColor: i === 0 ? "#f59e0b" : "var(--color-neutral-400)" }}>
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>{w.workerName}</p>
-                  <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                    {w.specialization} · {w.yearsOfExperience} yrs exp
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 mr-3">
-                  <Star className="h-3 w-3" style={{ color: "#f59e0b" }} />
-                  <span className="text-xs font-medium" style={{ color: "var(--color-foreground)" }}>
-                    {w.rankScore.toFixed(1)}
-                  </span>
-                </div>
-                <button onClick={() => handleAssign(w.workerId)} disabled={actionLoading}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-white transition"
-                  style={{ backgroundColor: "var(--color-primary)" }}>
-                  Assign
-                </button>
-              </div>
-            ))
-          )}
-        </motion.div>
-      )}
 
       {/* Lightbox */}
       <AnimatePresence>

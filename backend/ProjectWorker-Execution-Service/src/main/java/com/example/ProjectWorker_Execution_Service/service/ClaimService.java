@@ -20,4 +20,6 @@ public interface ClaimService {
 
     ClaimResponse respondToClaim(String claimId, WorkerClaimResponseRequest request,
                                   UserPrincipal principal);
+
+    void updateAiMediationReport(String claimId, String report);
 }
