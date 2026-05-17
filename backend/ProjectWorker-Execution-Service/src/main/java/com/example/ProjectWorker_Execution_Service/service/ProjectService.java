@@ -18,6 +18,8 @@ public interface ProjectService {
 
     List<ProjectResponse> getMyProjects(UserPrincipal principal);
 
+    List<ProjectResponse> getAllProjects(UserPrincipal principal);
+
     List<ProjectResponse> getAssignedProjects(UserPrincipal principal);
 
     ProjectResponse getProjectById(String projectId, UserPrincipal principal);

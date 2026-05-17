@@ -44,6 +44,12 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.getMyProjects(principal));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<ProjectResponse>> getAllProjects(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.getAllProjects(principal));
+    }
+
     @GetMapping("/assigned")
     public ResponseEntity<List<ProjectResponse>> getAssignedProjects(
             @AuthenticationPrincipal UserPrincipal principal) {

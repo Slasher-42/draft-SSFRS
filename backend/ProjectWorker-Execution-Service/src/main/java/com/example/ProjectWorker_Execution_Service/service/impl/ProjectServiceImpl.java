@@ -16,17 +16,19 @@ import com.example.ProjectWorker_Execution_Service.repository.WorkerCvRepository
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.ProjectService;
 import com.example.ProjectWorker_Execution_Service.service.S3UploadService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -44,7 +46,8 @@ public class ProjectServiceImpl implements ProjectService {
     @Value("${ai.service.base-url:http://localhost:8083}")
     private String aiServiceBaseUrl;
 
-    private final RestClient restClient = RestClient.create();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
     @Override
     @Transactional
@@ -76,6 +79,17 @@ public class ProjectServiceImpl implements ProjectService {
     public List<ProjectResponse> getMyProjects(UserPrincipal principal) {
         return projectRepository.findAllByProviderIdOrderByCreatedAtDesc(principal.getUserId())
                 .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProjectResponse> getAllProjects(UserPrincipal principal) {
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can view all projects.");
+        }
+        return projectRepository.findAll().stream()
+                .sorted(Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -159,13 +173,16 @@ public class ProjectServiceImpl implements ProjectService {
         body.put("workers", workers);
 
         try {
-            Map<String, Object> aiResponse = restClient.post()
-                    .uri(aiServiceBaseUrl + "/api/ai/matching/rank-candidates")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+            String jsonBody = MAPPER.writeValueAsString(body);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(aiServiceBaseUrl + "/api/ai/matching/rank-candidates"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 
+            @SuppressWarnings("unchecked")
+            Map<String, Object> aiResponse = MAPPER.readValue(response.body(), Map.class);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> ranked = (List<Map<String, Object>>) aiResponse.get("ranked_workers");
             return ranked.stream().map(r -> RankedWorkerResponse.builder()

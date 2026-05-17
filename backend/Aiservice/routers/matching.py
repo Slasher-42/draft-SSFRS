@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas import RankCandidatesRequest, RankCandidatesResponse, RankedCandidate
 from services import matching_service
-from kafka.producer import publish_event
+from messaging.producer import publish_event
 
 router = APIRouter(prefix="/api/ai/matching", tags=["Matching"])
 

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from database import create_tables
-from kafka.consumer import start_consumer
+from messaging.consumer import start_consumer
 from routers import rating, matching, claim, geolocation
 
 

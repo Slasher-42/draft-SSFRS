@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas import MediateClaimRequest, MediationReportResponse
 from services import claim_service
-from kafka.producer import publish_event
+from messaging.producer import publish_event
 
 router = APIRouter(prefix="/api/ai/claim", tags=["Claim Mediation"])
 

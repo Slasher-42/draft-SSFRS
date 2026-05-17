@@ -68,6 +68,11 @@ export const projectService = {
     return res.data;
   },
 
+  async getAllProjects(): Promise<ProjectResponse[]> {
+    const res = await executionApi.get<ProjectResponse[]>("/api/projects/all");
+    return res.data;
+  },
+
   async getAssignedProjects(): Promise<ProjectResponse[]> {
     const res = await executionApi.get<ProjectResponse[]>("/api/projects/assigned");
     return res.data;
