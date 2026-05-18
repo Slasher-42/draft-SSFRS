@@ -29,4 +29,10 @@ public class WorkerProfile {
     private String city;
 
     private String specialization;
+
+    private String linkedinUrl;
+
+    private String githubUrl;
+
+    private String otherProfileUrl;
 }

@@ -39,6 +39,9 @@ public class ProfileDtos {
         private String country;
         private String city;
         private String specialization;
+        private String linkedinUrl;
+        private String githubUrl;
+        private String otherProfileUrl;
     }
 
     @Getter @Setter @Builder @AllArgsConstructor @NoArgsConstructor
@@ -49,6 +52,9 @@ public class ProfileDtos {
         private String country;
         private String city;
         private String specialization;
+        private String linkedinUrl;
+        private String githubUrl;
+        private String otherProfileUrl;
     }
 
     @Getter @Setter

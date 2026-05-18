@@ -15,6 +15,13 @@ import {
   FileText,
   ClipboardList,
   AlertCircle,
+  Video,
+  Clock,
+  MessageSquare,
+  FileSignature,
+  GraduationCap,
+  Award,
+  ShieldCheck,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -31,15 +38,22 @@ function getNavItems(role: string): NavItem[] {
         { label: "Dashboard", href: "/dashboard/provider", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/provider/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Projects", href: "/dashboard/provider/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
+        { label: "View Alumni", href: "/dashboard/provider/alumni", icon: <GraduationCap className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Claims", href: "/dashboard/provider/claims", icon: <FileText className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Messages", href: "/dashboard/provider/messages", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Contract", href: "/dashboard/provider/contract", icon: <FileSignature className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "WORKER":
       return [
         { label: "Dashboard", href: "/dashboard/worker", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/worker/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
         { label: "My CV", href: "/dashboard/worker/cv", icon: <ClipboardList className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Interview", href: "/dashboard/worker/interview", icon: <Video className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Pending Projects", href: "/dashboard/worker/pending-projects", icon: <Clock className="h-5 w-5 flex-shrink-0" /> },
         { label: "Assigned Projects", href: "/dashboard/worker/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
         { label: "Claims Against Me", href: "/dashboard/worker/claims", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Messages", href: "/dashboard/worker/messages", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Contract", href: "/dashboard/worker/contract", icon: <FileSignature className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "EVALUATOR":
       return [
@@ -55,7 +69,9 @@ function getNavItems(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/dashboard/admin", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="h-5 w-5 flex-shrink-0" /> },
-        { label: "Project Assignment", href: "/dashboard/admin/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Projects", href: "/dashboard/admin/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
+        { label: "System Alumni", href: "/dashboard/admin/alumni", icon: <Award className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Contract Validation", href: "/dashboard/admin/contracts", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
       ];
     default:
       return [];
@@ -166,7 +182,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto p-3">
           <ul className="space-y-1">
             {navItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || (item.href !== "/dashboard/worker" && item.href !== "/dashboard/provider" && item.href !== "/dashboard/admin" && pathname.startsWith(item.href));
               return (
                 <li key={item.href}>
                   <Link

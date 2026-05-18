@@ -5,12 +5,48 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { FileText, Upload, Star } from "lucide-react";
+import { FileText, Upload, Star, ChevronDown } from "lucide-react";
 import { toast } from "react-toastify";
 import { workerCvService, WorkerCvResponse } from "@/lib/workerCvService";
 
+const FIELD_OPTIONS = [
+  "Full-Stack Development",
+  "Frontend Development",
+  "Backend Development",
+  "Mobile Development (iOS/Android)",
+  "UI/UX Design",
+  "Data Science & Analytics",
+  "Machine Learning / AI",
+  "DevOps & Cloud Engineering",
+  "Cybersecurity",
+  "Database Administration",
+  "Quality Assurance & Testing",
+  "Project Management",
+  "Product Management",
+  "Business Analysis",
+  "Network Engineering",
+  "Embedded Systems",
+  "Blockchain Development",
+  "Game Development",
+  "Civil Engineering",
+  "Mechanical Engineering",
+  "Electrical Engineering",
+  "Architecture & Design",
+  "Interior Design",
+  "Construction & Building",
+  "Plumbing & HVAC",
+  "Marketing & Digital Marketing",
+  "Content Creation & Copywriting",
+  "Finance & Accounting",
+  "Human Resources",
+  "Legal & Compliance",
+  "Healthcare Services",
+  "Education & Training",
+  "Logistics & Supply Chain",
+  "Other (type below)",
+];
+
 const schema = z.object({
-  specialization: z.string().min(2, "Specialization is required"),
   yearsOfExperience: z.number({ error: "Must be a number" }).min(0).max(50),
   additionalCredentials: z.string().optional(),
 });
@@ -23,6 +59,10 @@ export default function WorkerCvPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [fieldDropdown, setFieldDropdown] = useState("");
+  const [customField, setCustomField] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -32,20 +72,33 @@ export default function WorkerCvPage() {
       .then((cv) => {
         setExisting(cv);
         reset({
-          specialization: cv.specialization,
           yearsOfExperience: cv.yearsOfExperience,
           additionalCredentials: cv.additionalCredentials ?? "",
         });
+        const spec = cv.specialization || "";
+        if (FIELD_OPTIONS.includes(spec)) {
+          setFieldDropdown(spec);
+          setShowCustom(false);
+        } else if (spec) {
+          setFieldDropdown("Other (type below)");
+          setCustomField(spec);
+          setShowCustom(true);
+        }
       })
       .catch(() => { /* no CV yet — show empty form */ })
       .finally(() => setLoading(false));
   }, [reset]);
 
   const onSubmit = async (data: FormData) => {
+    const finalSpec = showCustom ? customField.trim() : fieldDropdown === "Other (type below)" ? customField.trim() : fieldDropdown;
+    if (!finalSpec) {
+      toast.error("Please select or enter your field of expertise.");
+      return;
+    }
     setSaving(true);
     try {
       const updated = await workerCvService.submitOrUpdateCv(
-        data.specialization,
+        finalSpec,
         data.yearsOfExperience,
         data.additionalCredentials ?? "",
         cvFile ?? undefined
@@ -117,15 +170,35 @@ export default function WorkerCvPage() {
         className="rounded-xl border p-6"
         style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Field of Expertise */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-              Area of Specialization
+              Field of Expertise <span style={{ color: "#ef4444" }}>*</span>
             </label>
-            <input {...register("specialization")} placeholder="e.g. Full-Stack Development, Data Analysis"
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
-              style={{ ...inputStyle, borderColor: errors.specialization ? "#ef4444" : "var(--color-border)" }} />
-            {errors.specialization && (
-              <p className="text-xs" style={{ color: "#ef4444" }}>{errors.specialization.message}</p>
+            <div className="relative">
+              <select
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none appearance-none pr-8"
+                style={inputStyle}
+                value={fieldDropdown}
+                onChange={(e) => {
+                  setFieldDropdown(e.target.value);
+                  setShowCustom(e.target.value === "Other (type below)");
+                }}
+              >
+                <option value="">— Select your field —</option>
+                {FIELD_OPTIONS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+                style={{ color: "var(--color-muted-foreground)" }} />
+            </div>
+            {showCustom && (
+              <input type="text" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                style={inputStyle}
+                placeholder="Type your specific field of expertise"
+                value={customField}
+                onChange={(e) => setCustomField(e.target.value)} />
             )}
           </div>
 
@@ -147,7 +220,7 @@ export default function WorkerCvPage() {
               Additional Credentials <span style={{ color: "var(--color-muted-foreground)" }}>(optional)</span>
             </label>
             <textarea {...register("additionalCredentials")} rows={3}
-              placeholder="Certifications, portfolio links, notable achievements..."
+              placeholder="Certifications, portfolio links, notable achievements…"
               className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none resize-none"
               style={{ ...inputStyle }} />
           </div>

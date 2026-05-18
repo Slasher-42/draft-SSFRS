@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +81,13 @@ public class WorkerCvServiceImpl implements WorkerCvService {
         WorkerCv cv = workerCvRepository.findByWorkerId(workerId)
                 .orElseThrow(() -> new ResourceNotFoundException("CV not found for this worker."));
         return toResponse(cv);
+    }
+
+    @Override
+    public List<WorkerCvResponse> getAllCvs() {
+        return workerCvRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override

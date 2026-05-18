@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -44,6 +45,15 @@ public class WorkerCvController {
     @GetMapping("/api/worker-cv/{workerId}")
     public ResponseEntity<WorkerCvResponse> getWorkerCv(@PathVariable String workerId) {
         return ResponseEntity.ok(workerCvService.getWorkerCv(workerId));
+    }
+
+    @GetMapping("/api/worker-cv/all")
+    public ResponseEntity<List<WorkerCvResponse>> getAllCvs(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can view all worker CVs.");
+        }
+        return ResponseEntity.ok(workerCvService.getAllCvs());
     }
 
     // ─── Internal endpoints (called by AI Service, API key protected) ────────

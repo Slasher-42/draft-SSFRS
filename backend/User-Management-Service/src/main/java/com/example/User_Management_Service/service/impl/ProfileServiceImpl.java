@@ -55,6 +55,9 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setCountry(request.getCountry());
         profile.setCity(request.getCity());
         profile.setSpecialization(request.getSpecialization());
+        profile.setLinkedinUrl(request.getLinkedinUrl());
+        profile.setGithubUrl(request.getGithubUrl());
+        profile.setOtherProfileUrl(request.getOtherProfileUrl());
         workerProfileRepository.save(profile);
         userEventPublisher.publishWorkerProfileSaved(userId);
         return mapToWorkerResponse(profile);
@@ -134,6 +137,9 @@ public class ProfileServiceImpl implements ProfileService {
                 .country(profile.getCountry())
                 .city(profile.getCity())
                 .specialization(profile.getSpecialization())
+                .linkedinUrl(profile.getLinkedinUrl())
+                .githubUrl(profile.getGithubUrl())
+                .otherProfileUrl(profile.getOtherProfileUrl())
                 .build();
     }
 

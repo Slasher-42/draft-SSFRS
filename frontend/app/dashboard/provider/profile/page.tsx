@@ -3,9 +3,29 @@
 import { useEffect, useState, useId } from "react";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import { authService } from "@/lib/authService";
 import { userService, type UserProfile, type ProviderProfile } from "@/lib/userService";
 import ProfileImageUpload from "@/components/ProfileImageUpload";
+
+const INDUSTRY_OPTIONS = [
+  "Technology & Software",
+  "Construction & Real Estate",
+  "Healthcare & Medicine",
+  "Education & Training",
+  "Finance & Banking",
+  "Retail & E-Commerce",
+  "Manufacturing",
+  "Agriculture & Food",
+  "Transportation & Logistics",
+  "Media & Entertainment",
+  "Energy & Utilities",
+  "Government & Public Sector",
+  "Non-Profit & NGO",
+  "Telecommunications",
+  "Legal & Consulting",
+  "Other (type below)",
+];
 
 const EMPTY_PROVIDER: ProviderProfile = {
   organizationName: "",
@@ -37,6 +57,9 @@ export default function ProviderProfilePage() {
   // identity profile state
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [industryDropdown, setIndustryDropdown] = useState("");
+  const [customIndustry, setCustomIndustry] = useState("");
+  const [showCustomIndustry, setShowCustomIndustry] = useState(false);
 
   useEffect(() => {
     const s = authService.getSession();
@@ -53,7 +76,19 @@ export default function ProviderProfilePage() {
 
     userService
       .getIdentityProfile(s.role, s.userId)
-      .then((p) => setProfile(p as ProviderProfile))
+      .then((p) => {
+        const ep = p as ProviderProfile;
+        setProfile(ep);
+        const ind = ep.industry || "";
+        if (INDUSTRY_OPTIONS.includes(ind)) {
+          setIndustryDropdown(ind);
+          setShowCustomIndustry(false);
+        } else if (ind) {
+          setIndustryDropdown("Other (type below)");
+          setCustomIndustry(ind);
+          setShowCustomIndustry(true);
+        }
+      })
       .catch(() => setProfile(EMPTY_PROVIDER))
       .finally(() => setLoadingProfile(false));
   }, []);
@@ -99,9 +134,11 @@ export default function ProviderProfilePage() {
 
   async function saveProfile() {
     if (!session) return;
+    const finalIndustry = showCustomIndustry ? customIndustry.trim() : industryDropdown === "Other (type below)" ? customIndustry.trim() : industryDropdown;
+    const payload: ProviderProfile = { ...profile, industry: finalIndustry };
     setSavingProfile(true);
     try {
-      const updated = await userService.saveIdentityProfile(session.role, session.userId, profile);
+      const updated = await userService.saveIdentityProfile(session.role, session.userId, payload);
       setProfile(updated as ProviderProfile);
       setEditingProfile(false);
       toast.success("Profile saved successfully.");
@@ -371,17 +408,39 @@ export default function ProviderProfilePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-                  Industry
+                  Industry / Field
                 </label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  style={editingProfile ? inputStyle : readStyle}
-                  readOnly={!editingProfile}
-                  placeholder="e.g. Technology"
-                  value={profile.industry}
-                  onChange={(e) => setProfile((p) => ({ ...p, industry: e.target.value }))}
-                />
+                {editingProfile ? (
+                  <>
+                    <div className="relative">
+                      <select
+                        className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none appearance-none pr-8"
+                        style={inputStyle}
+                        value={industryDropdown}
+                        onChange={(e) => {
+                          setIndustryDropdown(e.target.value);
+                          setShowCustomIndustry(e.target.value === "Other (type below)");
+                          if (e.target.value !== "Other (type below)") {
+                            setProfile((p) => ({ ...p, industry: e.target.value }));
+                          }
+                        }}
+                      >
+                        <option value="">— Select industry —</option>
+                        {INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+                        style={{ color: "var(--color-muted-foreground)" }} />
+                    </div>
+                    {showCustomIndustry && (
+                      <input type="text" className={inputClass} style={inputStyle}
+                        placeholder="Type your industry"
+                        value={customIndustry}
+                        onChange={(e) => setCustomIndustry(e.target.value)} />
+                    )}
+                  </>
+                ) : (
+                  <input type="text" className={inputClass} style={readStyle} readOnly value={profile.industry || ""} />
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>

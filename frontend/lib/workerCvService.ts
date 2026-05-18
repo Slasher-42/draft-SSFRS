@@ -41,4 +41,9 @@ export const workerCvService = {
     const res = await executionApi.get<WorkerCvResponse>(`/api/worker-cv/${workerId}`);
     return res.data;
   },
+
+  async getAllCvs(): Promise<WorkerCvResponse[]> {
+    const res = await executionApi.get<WorkerCvResponse[]>("/api/worker-cv/all");
+    return res.data;
+  },
 };
