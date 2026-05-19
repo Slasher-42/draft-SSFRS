@@ -5,12 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Calendar, DollarSign, User,
+  ArrowLeft, Calendar, DollarSign,
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X,
   Star, Briefcase, Award, Mail,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { projectService, ProjectResponse, ProjectImageResponse, RankedWorkerResponse } from "@/lib/projectService";
+import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
+import { userService } from "@/lib/userService";
 
 const statusColor: Record<string, string> = {
   OPEN: "#22c55e", ASSIGNED: "#3b82f6", COMPLETED: "#8b5cf6", FAILED: "#ef4444",
@@ -21,6 +23,9 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const [project, setProject] = useState<ProjectResponse | null>(null);
   const [workerInfo, setWorkerInfo] = useState<RankedWorkerResponse | null>(null);
+  const [workerCv, setWorkerCv] = useState<WorkerCvResponse | null>(null);
+  const [workerProfilePic, setWorkerProfilePic] = useState<string | null>(null);
+  const [workerImgError, setWorkerImgError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -29,13 +34,28 @@ export default function ProjectDetailPage() {
     projectService.getProject(id)
       .then(async (p) => {
         setProject(p);
-        /* Try to fetch assigned worker details from candidates list */
+        /* Resolve assigned worker details — profile pic, candidates, CV */
         if (p.assignedWorkerId) {
+          /* Fetch profile picture from user service in parallel */
+          userService.getUser(p.assignedWorkerId)
+            .then((u) => setWorkerProfilePic(u.profileImageUrl ?? null))
+            .catch(() => { /* no profile pic — ok */ });
+
           try {
             const candidates = await projectService.getCandidates(id);
             const w = candidates.find((c) => c.workerId === p.assignedWorkerId);
-            if (w) setWorkerInfo(w);
-          } catch { /* ok if no candidates */ }
+            if (w) {
+              setWorkerInfo(w);
+            } else {
+              const cv = await workerCvService.getWorkerCv(p.assignedWorkerId);
+              setWorkerCv(cv);
+            }
+          } catch {
+            try {
+              const cv = await workerCvService.getWorkerCv(p.assignedWorkerId);
+              setWorkerCv(cv);
+            } catch { /* nothing more we can do */ }
+          }
         }
       })
       .catch(() => toast.error("Project not found."))
@@ -90,9 +110,16 @@ export default function ProjectDetailPage() {
   if (!project) return null;
 
   const images = project.images ?? [];
-  const ratingPct = workerInfo ? Math.min(100, (workerInfo.ratingScore / 10) * 100) : 0;
-  const ratingColor = workerInfo
-    ? workerInfo.ratingScore >= 7 ? "#22c55e" : workerInfo.ratingScore >= 4 ? "#f59e0b" : "#ef4444"
+  /* Unify workerInfo and workerCv into a single display shape */
+  const displayWorker = workerInfo
+    ? { name: workerInfo.workerName, email: workerInfo.workerEmail, specialization: workerInfo.specialization, years: workerInfo.yearsOfExperience, rating: workerInfo.ratingScore, matchScore: workerInfo.rankScore }
+    : workerCv
+    ? { name: workerCv.workerName, email: workerCv.workerEmail, specialization: workerCv.specialization, years: workerCv.yearsOfExperience, rating: workerCv.ratingScore, matchScore: null }
+    : null;
+
+  const ratingPct = displayWorker ? Math.min(100, (displayWorker.rating / 10) * 100) : 0;
+  const ratingColor = displayWorker
+    ? displayWorker.rating >= 7 ? "#22c55e" : displayWorker.rating >= 4 ? "#f59e0b" : "#ef4444"
     : "#22c55e";
 
   return (
@@ -163,48 +190,60 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="p-6 space-y-5">
-            {workerInfo ? (
+            {displayWorker ? (
               <>
                 {/* Profile section */}
                 <div className="flex items-center gap-5">
-                  <div className="relative">
-                    <div className="h-16 w-16 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0"
-                      style={{ backgroundColor: avatarColor(workerInfo.workerId) }}>
-                      {initials(workerInfo.workerName)}
+                  <div className="relative flex-shrink-0">
+                    <div
+                      className="h-16 w-16 rounded-full overflow-hidden flex items-center justify-center text-white text-xl font-bold"
+                      style={{ backgroundColor: avatarColor(project.assignedWorkerId!) }}
+                    >
+                      {workerProfilePic && !workerImgError ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={workerProfilePic}
+                          alt={displayWorker.name}
+                          className="h-full w-full object-cover"
+                          onError={() => setWorkerImgError(true)}
+                        />
+                      ) : (
+                        initials(displayWorker.name)
+                      )}
                     </div>
                     <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 bg-green-500"
                       style={{ borderColor: "var(--color-card)" }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-lg" style={{ color: "var(--color-foreground)" }}>
-                      {workerInfo.workerName}
+                      {displayWorker.name}
                     </h4>
                     <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                      {workerInfo.specialization}
+                      {displayWorker.specialization}
                     </p>
                     <div className="flex items-center gap-1 mt-1">
                       <Mail className="h-3.5 w-3.5" style={{ color: "var(--color-neutral-400)" }} />
                       <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                        {workerInfo.workerEmail}
+                        {displayWorker.email}
                       </span>
                     </div>
                   </div>
                   <div className="flex flex-col items-center flex-shrink-0">
                     <Star className="h-5 w-5" style={{ color: "#f59e0b" }} />
                     <p className="text-2xl font-bold" style={{ color: "var(--color-foreground)" }}>
-                      {workerInfo.ratingScore.toFixed(1)}
+                      {displayWorker.rating.toFixed(1)}
                     </p>
                     <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>AI Score</p>
                   </div>
                 </div>
 
-                {/* Stats grid */}
-                <div className="grid grid-cols-3 gap-3">
+                {/* Stats grid — 3 cols when match score available, 2 cols otherwise */}
+                <div className={`grid gap-3 ${displayWorker.matchScore !== null ? "grid-cols-3" : "grid-cols-2"}`}>
                   <div className="rounded-xl p-3 text-center space-y-1"
                     style={{ backgroundColor: "var(--color-neutral-50)", border: "1px solid var(--color-border)" }}>
                     <Briefcase className="h-5 w-5 mx-auto" style={{ color: "var(--color-primary)" }} />
                     <p className="font-bold text-lg" style={{ color: "var(--color-foreground)" }}>
-                      {workerInfo.yearsOfExperience}
+                      {displayWorker.years}
                     </p>
                     <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Yrs Experience</p>
                   </div>
@@ -212,46 +251,46 @@ export default function ProjectDetailPage() {
                     style={{ backgroundColor: "var(--color-neutral-50)", border: "1px solid var(--color-border)" }}>
                     <Award className="h-5 w-5 mx-auto" style={{ color: "#f59e0b" }} />
                     <p className="font-bold text-lg" style={{ color: "var(--color-foreground)" }}>
-                      {workerInfo.ratingScore.toFixed(1)}
+                      {displayWorker.rating.toFixed(1)}
                     </p>
                     <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Rating Score</p>
                   </div>
-                  <div className="rounded-xl p-3 text-center space-y-1"
-                    style={{ backgroundColor: "var(--color-neutral-50)", border: "1px solid var(--color-border)" }}>
-                    <Star className="h-5 w-5 mx-auto" style={{ color: "#22c55e" }} />
-                    <p className="font-bold text-lg" style={{ color: "var(--color-foreground)" }}>
-                      {workerInfo.rankScore.toFixed(0)}%
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Project Match</p>
-                  </div>
+                  {displayWorker.matchScore !== null && (
+                    <div className="rounded-xl p-3 text-center space-y-1"
+                      style={{ backgroundColor: "var(--color-neutral-50)", border: "1px solid var(--color-border)" }}>
+                      <Star className="h-5 w-5 mx-auto" style={{ color: "#22c55e" }} />
+                      <p className="font-bold text-lg" style={{ color: "var(--color-foreground)" }}>
+                        {displayWorker.matchScore.toFixed(0)}%
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Project Match</p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Skill rating bar */}
+                {/* AI Skill rating bar */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs">
                     <span style={{ color: "var(--color-muted-foreground)" }}>AI Skill Rating</span>
-                    <span style={{ color: ratingColor }}>{workerInfo.ratingScore.toFixed(1)} / 10</span>
+                    <span style={{ color: ratingColor }}>{displayWorker.rating.toFixed(1)} / 10</span>
                   </div>
                   <div className="h-2 rounded-full" style={{ backgroundColor: "var(--color-border)" }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${ratingPct}%` }}
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${ratingPct}%` }}
                       transition={{ duration: 0.8, ease: "easeOut" }}
-                      className="h-2 rounded-full" style={{ backgroundColor: ratingColor }} />
+                      className="h-2 rounded-full"
+                      style={{ backgroundColor: ratingColor }}
+                    />
                   </div>
                 </div>
               </>
             ) : (
-              /* Fallback if we couldn't fetch worker details */
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "var(--color-neutral-100)" }}>
-                  <User className="h-6 w-6" style={{ color: "var(--color-neutral-400)" }} />
-                </div>
-                <div>
-                  <p className="font-semibold" style={{ color: "var(--color-foreground)" }}>Worker Assigned</p>
-                  <p className="text-xs font-mono mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
-                    ID: {project.assignedWorkerId}
-                  </p>
-                </div>
+              <div className="flex items-center gap-3 py-2">
+                <div className="h-5 w-5 rounded-full border-2 border-t-transparent animate-spin flex-shrink-0"
+                  style={{ borderColor: "var(--color-primary)" }} />
+                <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                  Loading worker details…
+                </p>
               </div>
             )}
           </div>

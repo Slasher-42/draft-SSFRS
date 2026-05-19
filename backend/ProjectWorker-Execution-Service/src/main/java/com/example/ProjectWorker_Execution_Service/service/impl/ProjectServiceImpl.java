@@ -93,6 +93,15 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public List<ProjectResponse> getOpenProjects() {
+        return projectRepository.findAllByStatus(ProjectStatus.OPEN)
+                .stream()
+                .sorted(Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<ProjectResponse> getAssignedProjects(UserPrincipal principal) {
         return projectRepository.findAllByAssignedWorkerIdOrderByCreatedAtDesc(principal.getUserId())
                 .stream().map(this::toResponse).collect(Collectors.toList());

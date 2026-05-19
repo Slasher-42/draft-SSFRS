@@ -16,9 +16,9 @@ export default function WorkerPendingProjectsPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    /* Fetch all OPEN projects — worker can only view, not apply directly */
-    projectService.getAllProjects()
-      .then((all) => setProjects(all.filter((p) => p.status === "OPEN")))
+    /* Fetch only OPEN projects — dedicated endpoint, no admin role required */
+    projectService.getOpenProjects()
+      .then(setProjects)
       .catch(() => toast.error("Failed to load pending projects."))
       .finally(() => setLoading(false));
   }, []);

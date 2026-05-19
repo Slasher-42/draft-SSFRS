@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { projectService, ProjectResponse, RankedWorkerResponse } from "@/lib/projectService";
+import { userService } from "@/lib/userService";
+
+interface CandidateWithPhoto extends RankedWorkerResponse {
+  profileImageUrl?: string | null;
+}
 
 const statusColor: Record<string, string> = {
   OPEN: "#22c55e", ASSIGNED: "#3b82f6", COMPLETED: "#8b5cf6", FAILED: "#ef4444",
@@ -42,7 +47,7 @@ export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [candidates, setCandidates] = useState<Record<string, RankedWorkerResponse[]>>({});
+  const [candidates, setCandidates] = useState<Record<string, CandidateWithPhoto[]>>({});
   const [candidateLoading, setCandidateLoading] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
 
@@ -62,8 +67,25 @@ export default function AdminProjectsPage() {
     setCandidateLoading(projectId);
     try {
       const ranked = await projectService.getCandidates(projectId);
-      setCandidates((prev) => ({ ...prev, [projectId]: ranked }));
+      const withPhotos: CandidateWithPhoto[] = ranked.map((w) => ({ ...w, profileImageUrl: null }));
+      setCandidates((prev) => ({ ...prev, [projectId]: withPhotos }));
       setExpandedId(projectId);
+
+      /* Fetch profile pictures in background */
+      withPhotos.forEach((w) => {
+        userService.getUser(w.workerId)
+          .then((u) => {
+            if (u.profileImageUrl) {
+              setCandidates((prev) => ({
+                ...prev,
+                [projectId]: (prev[projectId] ?? []).map((c) =>
+                  c.workerId === w.workerId ? { ...c, profileImageUrl: u.profileImageUrl } : c
+                ),
+              }));
+            }
+          })
+          .catch(() => { /* no profile pic — ok */ });
+      });
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         || "Failed to load AI-ranked candidates.";
@@ -275,7 +297,7 @@ function ProjectCard({
   project: ProjectResponse;
   index: number;
   expanded: boolean;
-  candidateList?: RankedWorkerResponse[];
+  candidateList?: CandidateWithPhoto[];
   candidateLoading: boolean;
   assigning: string | null;
   onToggleCandidates: () => void;
@@ -392,9 +414,14 @@ function ProjectCard({
 
                         {/* Avatar + name */}
                         <div className="flex items-center gap-3 pr-6">
-                          <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                          <div className="h-11 w-11 rounded-full overflow-hidden flex items-center justify-center text-white font-bold flex-shrink-0"
                             style={{ backgroundColor: avatarColor(w.workerId) }}>
-                            {initials(w.workerName)}
+                            {w.profileImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={w.profileImageUrl} alt={w.workerName} className="h-full w-full object-cover" />
+                            ) : (
+                              initials(w.workerName)
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-sm truncate" style={{ color: "var(--color-foreground)" }}>

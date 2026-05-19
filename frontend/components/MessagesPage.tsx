@@ -13,6 +13,7 @@ interface Contact {
   userId: string;
   name: string;
   projectName: string;
+  profileImageUrl: string | null;
   online: boolean;
 }
 
@@ -29,6 +30,44 @@ const colorForId = (id: string) => {
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % colors.length;
   return colors[h];
 };
+
+/* Avatar component — shows photo if available, otherwise colored initials */
+function Avatar({
+  name,
+  userId,
+  profileImageUrl,
+  size = 10,
+}: {
+  name: string;
+  userId: string;
+  profileImageUrl: string | null;
+  size?: number;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const dim = `h-${size} w-${size}`;
+
+  return (
+    <div
+      className={`${dim} rounded-full overflow-hidden flex items-center justify-center text-white font-bold flex-shrink-0`}
+      style={{
+        backgroundColor: colorForId(userId),
+        fontSize: size <= 9 ? "0.75rem" : "1rem",
+      }}
+    >
+      {profileImageUrl && !imgError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={profileImageUrl}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        initials(name)
+      )}
+    </div>
+  );
+}
 
 export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) {
   const [myId, setMyId] = useState("");
@@ -48,7 +87,7 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
     if (s) setMyId(s.userId);
   }, []);
 
-  /* Build contact list — resolve real names from APIs */
+  /* Build contact list — resolve real names and profile pictures from APIs */
   useEffect(() => {
     if (!myId) return;
 
@@ -66,39 +105,39 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
 
         await Promise.allSettled(
           projects
-            .filter((p) => (p.status === "ASSIGNED" || p.status === "COMPLETED") && !seen.has(
-              role === "PROVIDER" ? (p.assignedWorkerId ?? "") : p.providerId
-            ))
+            .filter((p) => p.status === "ASSIGNED" || p.status === "COMPLETED")
             .map(async (p) => {
-              let otherId: string;
-              let resolvedName: string;
+              const otherId =
+                role === "PROVIDER" ? p.assignedWorkerId : p.providerId;
+              if (!otherId || seen.has(otherId)) return;
+              seen.add(otherId);
+
+              let resolvedName = role === "PROVIDER" ? "Worker" : "Provider";
+              let profileImageUrl: string | null = null;
 
               if (role === "PROVIDER") {
-                otherId = p.assignedWorkerId!;
-                if (seen.has(otherId)) return;
-                seen.add(otherId);
-                try {
-                  const cv = await workerCvService.getWorkerCv(otherId);
-                  resolvedName = cv.workerName;
-                } catch {
-                  resolvedName = "Worker";
-                }
+                /* Get name from CV, profile picture from user service */
+                await Promise.allSettled([
+                  workerCvService.getWorkerCv(otherId).then((cv) => {
+                    resolvedName = cv.workerName;
+                  }),
+                  userService.getUser(otherId).then((u) => {
+                    profileImageUrl = u.profileImageUrl ?? null;
+                  }),
+                ]);
               } else {
-                otherId = p.providerId;
-                if (seen.has(otherId)) return;
-                seen.add(otherId);
-                try {
-                  const u = await userService.getUser(otherId);
+                /* Provider — both name and picture come from user service */
+                await userService.getUser(otherId).then((u) => {
                   resolvedName = u.fullName;
-                } catch {
-                  resolvedName = "Provider";
-                }
+                  profileImageUrl = u.profileImageUrl ?? null;
+                }).catch(() => { /* ok */ });
               }
 
               list.push({
                 userId: otherId,
                 name: resolvedName,
                 projectName: p.title,
+                profileImageUrl,
                 online: false,
               });
             })
@@ -129,7 +168,6 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
     setActiveContact(contact);
     if (pollRef.current) clearInterval(pollRef.current);
     loadMessages(contact);
-    /* Poll every 5s for new messages */
     pollRef.current = setInterval(() => loadMessages(contact), 5000);
   };
 
@@ -212,15 +250,13 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "var(--color-neutral-50)"; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "transparent"; }}
                 >
-                  {/* Avatar */}
-                  <div
-                    className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                    style={{ backgroundColor: colorForId(c.userId) }}
-                  >
-                    {initials(c.name)}
-                  </div>
+                  <Avatar
+                    name={c.name}
+                    userId={c.userId}
+                    profileImageUrl={c.profileImageUrl}
+                    size={10}
+                  />
 
-                  {/* Name + project in brackets */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: "var(--color-foreground)" }}>
                       {c.name}
@@ -242,12 +278,12 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
           <>
             {/* Chat header */}
             <div className="flex items-center gap-3 px-5 py-3.5 border-b" style={{ borderColor: "var(--color-border)" }}>
-              <div
-                className="h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                style={{ backgroundColor: colorForId(activeContact.userId) }}
-              >
-                {initials(activeContact.name)}
-              </div>
+              <Avatar
+                name={activeContact.name}
+                userId={activeContact.userId}
+                profileImageUrl={activeContact.profileImageUrl}
+                size={9}
+              />
               <div>
                 <p className="text-sm font-semibold" style={{ color: "var(--color-foreground)" }}>
                   {activeContact.name}
@@ -281,10 +317,19 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
                       initial={{ opacity: 0, y: 6, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.18 }}
-                      className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                      className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
                     >
-                      <div className="max-w-[75%] space-y-0.5">
-                        {/* Sender name on received messages */}
+                      {/* Received — show contact avatar beside the bubble */}
+                      {!isMe && (
+                        <Avatar
+                          name={activeContact.name}
+                          userId={activeContact.userId}
+                          profileImageUrl={activeContact.profileImageUrl}
+                          size={7}
+                        />
+                      )}
+
+                      <div className="max-w-[70%] space-y-0.5">
                         {!isMe && (
                           <p className="text-xs font-medium ml-1" style={{ color: "var(--color-muted-foreground)" }}>
                             {msg.senderName}

@@ -50,6 +50,11 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.getAllProjects(principal));
     }
 
+    @GetMapping("/open")
+    public ResponseEntity<List<ProjectResponse>> getOpenProjects() {
+        return ResponseEntity.ok(projectService.getOpenProjects());
+    }
+
     @GetMapping("/assigned")
     public ResponseEntity<List<ProjectResponse>> getAssignedProjects(
             @AuthenticationPrincipal UserPrincipal principal) {

@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { GraduationCap, Star, Briefcase, Search, Mail, Loader2, Award } from "lucide-react";
 import { toast } from "react-toastify";
 import { projectService, type ProjectResponse, type RankedWorkerResponse } from "@/lib/projectService";
+import { userService } from "@/lib/userService";
 
 interface WorkerWithProject extends RankedWorkerResponse {
   projectTitle: string;
   projectId: string;
+  profileImageUrl?: string | null;
 }
 
 export default function ProviderAlumniPage() {
@@ -37,7 +39,21 @@ export default function ProviderAlumniPage() {
             } catch { /* project may have no candidates */ }
           })
         );
-        setWorkers(results.sort((a, b) => b.ratingScore - a.ratingScore));
+        const sorted = results.sort((a, b) => b.ratingScore - a.ratingScore);
+        setWorkers(sorted);
+
+        /* Fetch profile pictures in the background */
+        sorted.forEach((w) => {
+          userService.getUser(w.workerId)
+            .then((u) => {
+              if (u.profileImageUrl) {
+                setWorkers((prev) =>
+                  prev.map((x) => x.workerId === w.workerId ? { ...x, profileImageUrl: u.profileImageUrl } : x)
+                );
+              }
+            })
+            .catch(() => { /* no profile pic — ok */ });
+        });
       })
       .catch(() => toast.error("Failed to load alumni."))
       .finally(() => setLoading(false));
@@ -132,9 +148,14 @@ export default function ProviderAlumniPage() {
 
                   {/* Header */}
                   <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0"
+                    <div className="h-12 w-12 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-base flex-shrink-0"
                       style={{ backgroundColor: avatarColor(w.workerId) }}>
-                      {initials(w.workerName)}
+                      {w.profileImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={w.profileImageUrl} alt={w.workerName} className="h-full w-full object-cover" />
+                      ) : (
+                        initials(w.workerName)
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold" style={{ color: "var(--color-foreground)" }}>{w.workerName}</p>

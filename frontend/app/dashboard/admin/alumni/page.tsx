@@ -9,6 +9,7 @@ import {
 import { toast } from "react-toastify";
 import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
 import { interviewService, type InterviewResponse } from "@/lib/interviewService";
+import { userService } from "@/lib/userService";
 
 const APPROVED_KEY = "ssfrs_approved_workers";
 const REJECTED_KEY = "ssfrs_rejected_workers";
@@ -28,6 +29,7 @@ interface AlumniWorker extends WorkerCvResponse {
   interviewScore?: number;
   interviewStatus?: "pending" | "submitted" | "not_started";
   interviewId?: string;
+  profileImageUrl?: string | null;
 }
 
 export default function AdminAlumniPage() {
@@ -50,15 +52,30 @@ export default function AdminAlumniPage() {
       const cvs = cvsRes.status === "fulfilled" ? cvsRes.value : [];
       const interviews: InterviewResponse[] = interviewsRes.status === "fulfilled" ? interviewsRes.value : [];
       const interviewMap = new Map(interviews.map((i) => [i.workerId, i]));
-      setWorkers(cvs.map((cv) => {
+      const baseWorkers = cvs.map((cv) => {
         const interview = interviewMap.get(cv.workerId);
         return {
           ...cv,
           interviewScore: interview?.interviewScore,
-          interviewStatus: interview ? (interview.status === "SCORED" ? "submitted" : "pending") : "not_started",
+          interviewStatus: (interview ? (interview.status === "SCORED" ? "submitted" : "pending") : "not_started") as "pending" | "submitted" | "not_started",
           interviewId: interview?.id,
+          profileImageUrl: null as string | null,
         };
-      }));
+      });
+      setWorkers(baseWorkers);
+
+      /* Fetch profile pictures in the background */
+      baseWorkers.forEach((w) => {
+        userService.getUser(w.workerId)
+          .then((u) => {
+            if (u.profileImageUrl) {
+              setWorkers((prev) =>
+                prev.map((x) => x.workerId === w.workerId ? { ...x, profileImageUrl: u.profileImageUrl } : x)
+              );
+            }
+          })
+          .catch(() => { /* no profile pic — ok */ });
+      });
     }).finally(() => setLoading(false));
   }, []);
 
@@ -203,9 +220,14 @@ export default function AdminAlumniPage() {
                     {/* Header */}
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <div className="h-14 w-14 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0"
+                        <div className="h-14 w-14 rounded-full overflow-hidden flex items-center justify-center text-white text-base font-bold flex-shrink-0"
                           style={{ backgroundColor: avatarColor(w.workerId) }}>
-                          {initials(w.workerName)}
+                          {w.profileImageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={w.profileImageUrl} alt={w.workerName} className="h-full w-full object-cover" />
+                          ) : (
+                            initials(w.workerName)
+                          )}
                         </div>
                         {isApproved && (
                           <CheckCircle className="absolute -bottom-1 -right-1 h-5 w-5 text-green-500 bg-white rounded-full" />

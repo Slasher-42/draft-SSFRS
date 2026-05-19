@@ -73,6 +73,11 @@ export const projectService = {
     return res.data;
   },
 
+  async getOpenProjects(): Promise<ProjectResponse[]> {
+    const res = await executionApi.get<ProjectResponse[]>("/api/projects/open");
+    return res.data;
+  },
+
   async getAssignedProjects(): Promise<ProjectResponse[]> {
     const res = await executionApi.get<ProjectResponse[]>("/api/projects/assigned");
     return res.data;
