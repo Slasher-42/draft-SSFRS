@@ -2,11 +2,13 @@ package com.example.User_Management_Service.kafka;
 
 import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class UserEventPublisher {
@@ -64,7 +66,8 @@ public class UserEventPublisher {
             String message = objectMapper.writeValueAsString(event);
             kafkaTemplate.send(topic, event.userId(), message);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to publish event to topic: " + topic, e);
+            log.warn("Kafka unavailable — event not published to topic '{}' for userId '{}': {}",
+                    topic, event.userId(), e.getMessage());
         }
     }
 }

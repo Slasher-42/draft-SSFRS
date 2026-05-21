@@ -87,7 +87,6 @@ public class AuthServiceImpl implements AuthService {
 
         user.setFailedLoginAttempts(0);
 
-        // If this device is already trusted, skip 2FA
         String deviceToken = request.getDeviceToken();
         if (deviceToken != null && !deviceToken.isBlank()
                 && trustedDeviceRepository.existsByUserIdAndDeviceToken(user.getId(), deviceToken)) {
@@ -95,7 +94,6 @@ public class AuthServiceImpl implements AuthService {
             return buildFullResponse(user, deviceToken);
         }
 
-        // New device — generate and send OTP
         String otp = generateOtp();
         user.setOtpCode(otp);
         user.setOtpExpiry(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
@@ -130,7 +128,6 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Invalid verification code.");
         }
 
-        // OTP correct — clear it and trust this device
         user.setOtpCode(null);
         user.setOtpExpiry(null);
         userRepository.save(user);

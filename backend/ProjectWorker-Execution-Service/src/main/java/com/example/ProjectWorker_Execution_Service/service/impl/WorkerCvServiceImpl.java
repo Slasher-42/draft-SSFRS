@@ -28,27 +28,36 @@ public class WorkerCvServiceImpl implements WorkerCvService {
     private final ExecutionEventPublisher eventPublisher;
 
     @Override
-    @Transactional
     public WorkerCvResponse submitOrUpdateCv(String specialization, int yearsOfExperience,
                                               String additionalCredentials, MultipartFile cvFile,
                                               UserPrincipal principal) {
         if (!"WORKER".equals(principal.getRole())) {
             throw new ForbiddenException("Only workers can submit a CV.");
         }
-
-        Optional<WorkerCv> existing = workerCvRepository.findByWorkerId(principal.getUserId());
-        WorkerCv cv;
-
-        if (existing.isPresent()) {
-            cv = existing.get();
-        } else {
-            cv = WorkerCv.builder()
-                    .workerId(principal.getUserId())
-                    .workerEmail(principal.getEmail())
-                    .workerName(extractNameFromEmail(principal.getEmail()))
-                    .ratingScore(0.0)
-                    .build();
+        WorkerCvResponse response = persistCv(specialization, yearsOfExperience, additionalCredentials, cvFile, principal);
+        if (isReadyForRating(response)) {
+            eventPublisher.publishWorkerCvSubmitted(principal.getUserId());
         }
+        return response;
+    }
+
+    private boolean isReadyForRating(WorkerCvResponse cv) {
+        return cv.getCvFileUrl() != null
+            && cv.getSpecialization() != null && !cv.getSpecialization().isBlank()
+            && cv.getYearsOfExperience() > 0;
+    }
+
+    @Transactional
+    protected WorkerCvResponse persistCv(String specialization, int yearsOfExperience,
+                                          String additionalCredentials, MultipartFile cvFile,
+                                          UserPrincipal principal) {
+        Optional<WorkerCv> existing = workerCvRepository.findByWorkerId(principal.getUserId());
+        WorkerCv cv = existing.orElseGet(() -> WorkerCv.builder()
+                .workerId(principal.getUserId())
+                .workerEmail(principal.getEmail())
+                .workerName(extractNameFromEmail(principal.getEmail()))
+                .ratingScore(0.0)
+                .build());
 
         cv.setSpecialization(specialization);
         cv.setYearsOfExperience(yearsOfExperience);
@@ -64,8 +73,6 @@ public class WorkerCvServiceImpl implements WorkerCvService {
         }
 
         workerCvRepository.save(cv);
-        eventPublisher.publishWorkerCvSubmitted(principal.getUserId());
-
         return toResponse(cv);
     }
 

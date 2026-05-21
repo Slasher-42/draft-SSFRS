@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 
 def reverse_geocode(lat: float, lon: float) -> str:
-    """Convert GPS coordinates to a human-readable address using Nominatim."""
     try:
         url = "https://nominatim.openstreetmap.org/reverse"
         params = {"lat": lat, "lon": lon, "format": "json"}
@@ -18,23 +17,13 @@ def reverse_geocode(lat: float, lon: float) -> str:
 
 
 def verify_geolocation(data: dict, db: Session) -> GeolocationResult:
-    """
-    5-step geolocation verification:
-    1. Coordinates received (already extracted by Service 2)
-    2. Reverse geocode to address
-    3. Location relevance check
-    4. Timestamp validation
-    5. Compile report
-    """
     lat = data["latitude"]
     lon = data["longitude"]
     claim_id = data["claim_id"]
     flags = []
 
-    # Step 2 — Reverse geocode
     address = reverse_geocode(lat, lon)
 
-    # Step 3 — Location relevance check
     project_location = data.get("project_location", "").lower()
     location_status = "VERIFIED"
     if project_location:
@@ -49,7 +38,6 @@ def verify_geolocation(data: dict, db: Session) -> GeolocationResult:
         location_status = "VERIFIED"
         flags.append("No project location on record — location cross-reference skipped.")
 
-    # Step 4 — Timestamp validation
     timeline_status = "UNKNOWN"
     timestamp = data.get("photo_timestamp")
     if not timestamp:
@@ -69,7 +57,6 @@ def verify_geolocation(data: dict, db: Session) -> GeolocationResult:
         else:
             timeline_status = "UNKNOWN"
 
-    # Persist
     existing = db.query(GeolocationResult).filter(GeolocationResult.claim_id == claim_id).first()
     if existing:
         existing.latitude = lat

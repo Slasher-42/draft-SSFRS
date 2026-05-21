@@ -26,8 +26,6 @@ public class ClaimController {
     @Value("${internal.api-key}")
     private String internalApiKey;
 
-    // ─── JWT-authenticated endpoints ─────────────────────────────────────────
-
     @PostMapping(path = "/api/claims", consumes = "multipart/form-data")
     public ResponseEntity<ClaimResponse> fileClaim(
             @RequestParam("projectId") String projectId,
@@ -64,8 +62,6 @@ public class ClaimController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(claimService.respondToClaim(id, request, principal));
     }
-
-    // ─── Internal endpoint (called by AI Service) ────────────────────────────
 
     @PatchMapping("/api/internal/claims/{id}/mediation")
     public ResponseEntity<Void> updateMediationReport(

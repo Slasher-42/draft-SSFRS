@@ -78,7 +78,6 @@ public class ClaimServiceImpl implements ClaimService {
                     String key = s3UploadService.uploadFile(file, "claim-documents");
                     docKeys.add(key);
 
-                    // Try EXIF extraction from image files
                     String ct = file.getContentType();
                     if (ct != null && (ct.startsWith("image/jpeg") || ct.startsWith("image/jpg"))) {
                         byte[] bytes = file.getBytes();
@@ -203,7 +202,6 @@ public class ClaimServiceImpl implements ClaimService {
                 }
             }
         } catch (Exception ignored) {
-            // no EXIF or not an image — skip silently
         }
         return null;
     }

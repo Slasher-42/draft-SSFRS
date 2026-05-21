@@ -32,7 +32,6 @@ public class S3UploadService {
             "image/jpeg", "image/png", "image/gif", "image/webp"
     );
 
-    /** Uploads the file and returns the S3 key (stored in the DB). */
     public String uploadProfileImage(String userId, MultipartFile file) {
         validateFile(file);
 
@@ -56,10 +55,8 @@ public class S3UploadService {
         return key;
     }
 
-    /** Generates a pre-signed URL valid for 7 days from an S3 key. */
     public String generatePresignedUrl(String key) {
         if (key == null || key.isBlank()) return null;
-        // Handle legacy entries that stored the full URL
         if (key.startsWith("https://")) {
             key = extractKeyFromUrl(key);
         }
@@ -86,7 +83,6 @@ public class S3UploadService {
     }
 
     private String extractKeyFromUrl(String url) {
-        // https://{bucket}.s3.{region}.amazonaws.com/{key}
         int idx = url.indexOf(".amazonaws.com/");
         if (idx == -1) return url;
         return url.substring(idx + ".amazonaws.com/".length());

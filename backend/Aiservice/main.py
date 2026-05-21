@@ -1,20 +1,20 @@
+import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from database import create_tables
-from messaging.consumer import start_consumer
+from database import create_tables, SessionLocal
+from messaging.consumer import start_consumer, retrigger_unrated_workers
 from routers import rating, matching, claim, geolocation
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     create_tables()
     start_consumer()
+    threading.Thread(target=retrigger_unrated_workers, args=(SessionLocal,), daemon=True).start()
     print("[SSFRS AI Service] Started on port 8083")
     yield
-    # Shutdown (nothing needed)
 
 
 app = FastAPI(

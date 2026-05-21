@@ -6,7 +6,6 @@ from datetime import datetime
 
 
 def rate_worker(data: dict, db: Session) -> WorkerRating:
-    """Use Groq to generate a composite rating for a worker, then store it."""
     prompt = f"""You are an AI evaluator for a professional service platform called SSFRS (Smart Service Failure Refund System).
 Analyze this worker profile and generate a fair rating.
 
@@ -40,7 +39,6 @@ Respond ONLY with valid JSON, no markdown, no explanation outside JSON:
 
     result = chat_json(prompt)
 
-    # Upsert the rating
     existing = db.query(WorkerRating).filter(WorkerRating.worker_id == data["worker_id"]).first()
     if existing:
         existing.cv_score = result["cv_score"]
@@ -83,7 +81,6 @@ def get_rating(worker_id: str, db: Session) -> WorkerRating | None:
 
 
 def apply_failure_penalty(worker_id: str, severity: str, db: Session) -> WorkerRating | None:
-    """Reduce a worker's failure_score and recalculate overall_score after an approved claim."""
     rating = get_rating(worker_id, db)
     if not rating:
         return None

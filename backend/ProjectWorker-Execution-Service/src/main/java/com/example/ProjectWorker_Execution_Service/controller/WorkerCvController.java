@@ -23,8 +23,6 @@ public class WorkerCvController {
     @Value("${internal.api-key}")
     private String internalApiKey;
 
-    // ─── Public (JWT-authenticated) endpoints ───────────────────────────────
-
     @PostMapping(path = "/api/worker-cv", consumes = "multipart/form-data")
     public ResponseEntity<WorkerCvResponse> submitOrUpdateCv(
             @RequestParam("specialization") String specialization,
@@ -56,7 +54,20 @@ public class WorkerCvController {
         return ResponseEntity.ok(workerCvService.getAllCvs());
     }
 
-    // ─── Internal endpoints (called by AI Service, API key protected) ────────
+    @GetMapping("/api/internal/worker-cv/all")
+    public ResponseEntity<List<WorkerCvResponse>> getAllCvsInternal(
+            @RequestHeader("X-Internal-Key") String key) {
+        validateKey(key);
+        return ResponseEntity.ok(workerCvService.getAllCvs());
+    }
+
+    @GetMapping("/api/internal/worker-cv/{workerId}")
+    public ResponseEntity<WorkerCvResponse> getWorkerCvInternal(
+            @PathVariable String workerId,
+            @RequestHeader("X-Internal-Key") String key) {
+        validateKey(key);
+        return ResponseEntity.ok(workerCvService.getWorkerCv(workerId));
+    }
 
     @PatchMapping("/api/internal/worker-cv/{workerId}/rating")
     public ResponseEntity<Void> updateRating(

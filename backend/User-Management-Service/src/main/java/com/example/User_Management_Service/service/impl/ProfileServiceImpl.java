@@ -22,8 +22,14 @@ public class ProfileServiceImpl implements ProfileService {
     private final UserEventPublisher userEventPublisher;
 
     @Override
-    @Transactional
     public ProfileDtos.ProjectProviderProfileResponse saveProviderProfile(String userId, ProfileDtos.ProjectProviderProfileRequest request) {
+        ProfileDtos.ProjectProviderProfileResponse response = saveProviderProfileTransactional(userId, request);
+        userEventPublisher.publishProjectProviderProfileSaved(userId);
+        return response;
+    }
+
+    @Transactional
+    protected ProfileDtos.ProjectProviderProfileResponse saveProviderProfileTransactional(String userId, ProfileDtos.ProjectProviderProfileRequest request) {
         User user = findUserById(userId);
         ProjectProviderProfile profile = providerProfileRepository.findByUserId(userId)
                 .orElse(ProjectProviderProfile.builder().user(user).build());
@@ -34,7 +40,6 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setWebsite(request.getWebsite());
         profile.setContactDetails(request.getContactDetails());
         providerProfileRepository.save(profile);
-        userEventPublisher.publishProjectProviderProfileSaved(userId);
         return mapToProviderResponse(profile);
     }
 
@@ -46,8 +51,14 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
-    @Transactional
     public ProfileDtos.WorkerProfileResponse saveWorkerProfile(String userId, ProfileDtos.WorkerProfileRequest request) {
+        ProfileDtos.WorkerProfileResponse response = saveWorkerProfileTransactional(userId, request);
+        userEventPublisher.publishWorkerProfileSaved(userId);
+        return response;
+    }
+
+    @Transactional
+    protected ProfileDtos.WorkerProfileResponse saveWorkerProfileTransactional(String userId, ProfileDtos.WorkerProfileRequest request) {
         User user = findUserById(userId);
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
                 .orElse(WorkerProfile.builder().user(user).build());
@@ -59,7 +70,6 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setGithubUrl(request.getGithubUrl());
         profile.setOtherProfileUrl(request.getOtherProfileUrl());
         workerProfileRepository.save(profile);
-        userEventPublisher.publishWorkerProfileSaved(userId);
         return mapToWorkerResponse(profile);
     }
 

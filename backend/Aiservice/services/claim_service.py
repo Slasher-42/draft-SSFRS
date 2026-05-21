@@ -6,7 +6,6 @@ from datetime import datetime
 
 
 def mediate_claim(data: dict, db: Session) -> MediationReport:
-    """Use Groq to analyse a claim dispute and generate a structured mediation report."""
     geo_text = (
         f"Geotagged photo evidence was submitted. Location verification result: {data['geolocation_summary']}"
         if data.get("geolocation_summary")
@@ -54,7 +53,6 @@ Respond ONLY with valid JSON, no markdown:
 
     result = chat_json(prompt, max_tokens=1500)
 
-    # Upsert
     existing = db.query(MediationReport).filter(MediationReport.claim_id == data["claim_id"]).first()
     if existing:
         existing.analysis = result["analysis"]

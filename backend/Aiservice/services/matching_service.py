@@ -5,11 +5,9 @@ from sqlalchemy.orm import Session
 
 
 def rank_candidates(project: dict, workers: list[dict], db: Session) -> list[dict]:
-    """Use Groq to rank workers for a specific project based on their profiles and AI ratings."""
     if not workers:
         return []
 
-    # Enrich each worker with their AI rating from our DB
     enriched = []
     for w in workers:
         stored = db.query(WorkerRating).filter(WorkerRating.worker_id == w["worker_id"]).first()
@@ -59,7 +57,6 @@ List ALL {len(workers)} workers in ranked order."""
     result = chat_json(prompt, max_tokens=2000)
     ranked_ids = {r["worker_id"]: r for r in result.get("ranked_workers", [])}
 
-    # Merge AI ranking with full worker details
     output = []
     for w in enriched:
         rank_info = ranked_ids.get(w["worker_id"], {

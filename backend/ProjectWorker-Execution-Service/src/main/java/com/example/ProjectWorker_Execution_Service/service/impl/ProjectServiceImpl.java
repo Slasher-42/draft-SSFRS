@@ -158,10 +158,13 @@ public class ProjectServiceImpl implements ProjectService {
             throw new ForbiddenException("Only admins can view ranked candidates.");
         }
         Project project = findProject(projectId);
-        List<WorkerCv> allCvs = workerCvRepository.findAll();
+        List<WorkerCv> allCvs = workerCvRepository.findAll().stream()
+                .filter(cv -> cv.getSpecialization() != null
+                           && cv.getWorkerName() != null
+                           && cv.getWorkerEmail() != null)
+                .collect(Collectors.toList());
         if (allCvs.isEmpty()) return List.of();
 
-        // Build request body for AI Service
         List<Map<String, Object>> workers = allCvs.stream().map(cv -> {
             Map<String, Object> w = new HashMap<>();
             w.put("worker_id", cv.getWorkerId());
@@ -204,7 +207,6 @@ public class ProjectServiceImpl implements ProjectService {
                     .rankScore(((Number) r.get("match_score")).doubleValue())
                     .build()).collect(Collectors.toList());
         } catch (Exception e) {
-            // Fallback: basic ranking by ratingScore if AI service unavailable
             return allCvs.stream()
                     .sorted(Comparator.comparingDouble(WorkerCv::getRatingScore).reversed())
                     .map(cv -> RankedWorkerResponse.builder()

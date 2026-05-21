@@ -1,8 +1,5 @@
-"""
-Background Kafka consumer — listens to Service 2 events and triggers AI processing.
-Run this in a background thread via main.py startup.
-"""
 import threading
+import time
 import httpx
 from kafka import KafkaConsumer
 from config import settings
@@ -13,23 +10,11 @@ from services import rating_service, claim_service, geolocation_service
 INTERNAL_HEADERS = {"X-Internal-Key": settings.internal_api_key}
 
 
-def _get_db():
-    db = SessionLocal()
-    try:
-        return db
-    finally:
-        pass
-
-
 def handle_worker_cv_submitted(payload: str):
-    """
-    Payload format: workerId
-    Fetch CV details from Service 2 then trigger AI rating.
-    """
     worker_id = payload.strip()
     try:
         resp = httpx.get(
-            f"{settings.service2_base_url}/api/worker-cv/{worker_id}",
+            f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}",
             headers=INTERNAL_HEADERS,
             timeout=10,
         )
@@ -51,7 +36,6 @@ def handle_worker_cv_submitted(payload: str):
                 "past_failures": existing_rating.past_failures if existing_rating else 0,
             }
             rating = rating_service.rate_worker(worker_data, db)
-            # Push score back to Service 2
             httpx.patch(
                 f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}/rating",
                 json={"ratingScore": rating.overall_score},
@@ -66,10 +50,6 @@ def handle_worker_cv_submitted(payload: str):
 
 
 def handle_claim_filed(payload: str):
-    """
-    Payload format: claimId:projectId:workerId
-    Fetch claim details from Service 2, run geolocation if needed, then mediate.
-    """
     parts = payload.strip().split(":")
     if len(parts) < 3:
         return
@@ -95,7 +75,6 @@ def handle_claim_filed(payload: str):
         geo_summary = None
         db = SessionLocal()
         try:
-            # Run geolocation if coordinates are available
             if claim.get("extractedLat") and claim.get("extractedLon"):
                 geo = geolocation_service.verify_geolocation({
                     "claim_id": claim_id,
@@ -122,7 +101,6 @@ def handle_claim_filed(payload: str):
             }
             report = claim_service.mediate_claim(mediation_data, db)
 
-            # Push mediation report back to Service 2
             httpx.patch(
                 f"{settings.service2_base_url}/api/internal/claims/{claim_id}/mediation",
                 json={
@@ -142,42 +120,88 @@ def handle_claim_filed(payload: str):
 
 
 def handle_worker_claim_response(payload: str):
-    """Re-run mediation after worker responds."""
     parts = payload.strip().split(":")
-    if len(parts) < 2:
+    if len(parts) < 3:
         return
-    claim_id = parts[0]
-    handle_claim_filed(f"{claim_id}:{payload}")
+    handle_claim_filed(payload)
+
+
+def retrigger_unrated_workers(db_factory):
+    import time as _time
+    _time.sleep(12)
+    try:
+        resp = httpx.get(
+            f"{settings.service2_base_url}/api/internal/worker-cv/all",
+            headers=INTERNAL_HEADERS,
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            print(f"[Startup] Could not fetch all CVs: {resp.status_code}")
+            return
+        cvs = resp.json()
+        db = db_factory()
+        try:
+            from services import rating_service as _rs
+            for cv in cvs:
+                worker_id = cv.get("workerId")
+                if not worker_id:
+                    continue
+                if not cv.get("cvFileUrl"):
+                    continue
+                if not cv.get("specialization") or not cv.get("yearsOfExperience"):
+                    continue
+                existing = _rs.get_rating(worker_id, db)
+                if existing and existing.overall_score > 0:
+                    continue
+                print(f"[Startup] Retroactively rating worker {worker_id}")
+                threading.Thread(
+                    target=handle_worker_cv_submitted, args=(worker_id,), daemon=True
+                ).start()
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Startup] Error during retroactive rating: {e}")
 
 
 def start_consumer():
-    """Run Kafka consumer in a background thread."""
     def _run():
-        try:
-            consumer = KafkaConsumer(
-                "worker-cv-submitted",
-                "claim-filed",
-                "worker-claim-response-submitted",
-                bootstrap_servers=settings.kafka_bootstrap_servers,
-                group_id="ai-service-group",
-                auto_offset_reset="latest",
-                enable_auto_commit=True,
-                api_version=(3, 7, 0),
-            )
-            print("[Kafka Consumer] Started — listening for events...")
-            for msg in consumer:
-                topic = msg.topic
-                value = msg.value.decode("utf-8") if msg.value else ""
-                print(f"[Kafka] Received: {topic} → {value}")
+        retry_delay = 5
+        while True:
+            consumer = None
+            try:
+                consumer = KafkaConsumer(
+                    "worker-cv-submitted",
+                    "claim-filed",
+                    "worker-claim-response-submitted",
+                    bootstrap_servers=settings.kafka_bootstrap_servers,
+                    group_id="ai-service-group",
+                    auto_offset_reset="latest",
+                    enable_auto_commit=True,
+                    api_version=(3, 7, 0),
+                )
+                retry_delay = 5
+                print("[Kafka Consumer] Started — listening for events...")
+                for msg in consumer:
+                    topic = msg.topic
+                    value = msg.value.decode("utf-8") if msg.value else ""
+                    print(f"[Kafka] Received: {topic} → {value}")
 
-                if topic == "worker-cv-submitted":
-                    threading.Thread(target=handle_worker_cv_submitted, args=(value,), daemon=True).start()
-                elif topic == "claim-filed":
-                    threading.Thread(target=handle_claim_filed, args=(value,), daemon=True).start()
-                elif topic == "worker-claim-response-submitted":
-                    threading.Thread(target=handle_worker_claim_response, args=(value,), daemon=True).start()
-        except Exception as e:
-            print(f"[Kafka Consumer] Error: {e}")
+                    if topic == "worker-cv-submitted":
+                        threading.Thread(target=handle_worker_cv_submitted, args=(value,), daemon=True).start()
+                    elif topic == "claim-filed":
+                        threading.Thread(target=handle_claim_filed, args=(value,), daemon=True).start()
+                    elif topic == "worker-claim-response-submitted":
+                        threading.Thread(target=handle_worker_claim_response, args=(value,), daemon=True).start()
+            except Exception as e:
+                print(f"[Kafka Consumer] Error: {e}. Reconnecting in {retry_delay}s...")
+            finally:
+                if consumer is not None:
+                    try:
+                        consumer.close()
+                    except Exception:
+                        pass
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
