@@ -12,6 +12,7 @@ INTERNAL_HEADERS = {"X-Internal-Key": settings.internal_api_key}
 
 def handle_worker_cv_submitted(payload: str):
     worker_id = payload.strip()
+    time.sleep(3)
     try:
         resp = httpx.get(
             f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}",
@@ -35,6 +36,10 @@ def handle_worker_cv_submitted(payload: str):
                 "completed_projects": existing_rating.completed_projects if existing_rating else 0,
                 "past_failures": existing_rating.past_failures if existing_rating else 0,
             }
+            print(f"[AI] Rating worker {worker_id} — specialization={worker_data['specialization']}, "
+                  f"experience={worker_data['years_of_experience']}yrs, "
+                  f"credentials={'YES' if worker_data['additional_credentials'] else 'NONE'}, "
+                  f"projects={worker_data['completed_projects']}, failures={worker_data['past_failures']}")
             rating = rating_service.rate_worker(worker_data, db)
             httpx.patch(
                 f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}/rating",

@@ -61,7 +61,7 @@ public class WorkerCvServiceImpl implements WorkerCvService {
 
         cv.setSpecialization(specialization);
         cv.setYearsOfExperience(yearsOfExperience);
-        cv.setAdditionalCredentials(additionalCredentials);
+        cv.setAdditionalCredentials(additionalCredentials != null && !additionalCredentials.isBlank() ? additionalCredentials : null);
 
         if (cvFile != null && !cvFile.isEmpty()) {
             try {
