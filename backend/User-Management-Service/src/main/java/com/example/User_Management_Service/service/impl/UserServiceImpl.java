@@ -12,6 +12,9 @@ import com.example.User_Management_Service.repository.UserRepository;
 import com.example.User_Management_Service.service.S3UploadService;
 import com.example.User_Management_Service.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final S3UploadService s3UploadService;
 
     @Override
+    @Cacheable(value = "users", key = "#userId")
     public UserResponse getUserById(String userId) {
         User user = findUserById(userId);
         return mapToUserResponse(user);
@@ -38,6 +42,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "#userId"),
+            @CacheEvict(value = "users-all", allEntries = true)
+    })
     public UserResponse updateUser(String userId, UpdateUserRequest request) {
         User user = findUserById(userId);
         user.setFullName(request.getFullName());
@@ -58,6 +66,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "users-all", key = "'all'")
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll()
                 .stream()
@@ -67,6 +76,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "users-all", allEntries = true)
     public UserResponse createRestrictedUser(CreateAdminUserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException("An account with this email already exists.");
@@ -87,6 +97,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "#userId"),
+            @CacheEvict(value = "users-all", allEntries = true)
+    })
     public UserResponse activateUser(String userId) {
         User user = findUserById(userId);
         user.setActive(true);
@@ -99,6 +113,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "#userId"),
+            @CacheEvict(value = "users-all", allEntries = true)
+    })
     public UserResponse deactivateUser(String userId) {
         User user = findUserById(userId);
         user.setActive(false);
@@ -109,6 +127,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "#userId"),
+            @CacheEvict(value = "users-all", allEntries = true)
+    })
     public void deleteUser(String userId) {
         User user = findUserById(userId);
         userRepository.delete(user);
@@ -117,6 +139,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "users", key = "#userId")
     public UserResponse uploadProfileImage(String userId, MultipartFile file) {
         User user = findUserById(userId);
         s3UploadService.deleteProfileImage(user.getProfileImageUrl());

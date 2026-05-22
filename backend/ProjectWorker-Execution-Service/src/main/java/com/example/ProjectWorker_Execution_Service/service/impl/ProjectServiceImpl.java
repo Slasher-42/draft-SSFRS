@@ -19,6 +19,9 @@ import com.example.ProjectWorker_Execution_Service.service.S3UploadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -51,6 +54,11 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "projects-my", key = "#principal.userId"),
+            @CacheEvict(value = "projects-all", allEntries = true),
+            @CacheEvict(value = "projects-open", allEntries = true)
+    })
     public ProjectResponse createProject(String title, String scopeOfWork, String requiredSkills,
                                           LocalDate deadline, BigDecimal budget,
                                           List<MultipartFile> images, List<String> imageDescriptions,
@@ -76,12 +84,14 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Cacheable(value = "projects-my", key = "#principal.userId")
     public List<ProjectResponse> getMyProjects(UserPrincipal principal) {
         return projectRepository.findAllByProviderIdOrderByCreatedAtDesc(principal.getUserId())
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
+    @Cacheable(value = "projects-all", key = "'all'")
     public List<ProjectResponse> getAllProjects(UserPrincipal principal) {
         if (!"ADMIN".equals(principal.getRole())) {
             throw new ForbiddenException("Only admins can view all projects.");
@@ -93,6 +103,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Cacheable(value = "projects-open", key = "'open'")
     public List<ProjectResponse> getOpenProjects() {
         return projectRepository.findAllByStatus(ProjectStatus.OPEN)
                 .stream()
@@ -102,12 +113,14 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Cacheable(value = "projects-assigned", key = "#principal.userId")
     public List<ProjectResponse> getAssignedProjects(UserPrincipal principal) {
         return projectRepository.findAllByAssignedWorkerIdOrderByCreatedAtDesc(principal.getUserId())
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
+    @Cacheable(value = "projects-by-id", key = "#projectId")
     public ProjectResponse getProjectById(String projectId, UserPrincipal principal) {
         Project project = findProject(projectId);
         boolean isProvider = project.getProviderId().equals(principal.getUserId());
@@ -120,6 +133,12 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "projects-by-id", key = "#projectId"),
+            @CacheEvict(value = "projects-my", allEntries = true),
+            @CacheEvict(value = "projects-all", allEntries = true),
+            @CacheEvict(value = "projects-assigned", allEntries = true)
+    })
     public ProjectResponse markCompleted(String projectId, UserPrincipal principal) {
         Project project = findAndVerifyOwner(projectId, principal);
         if (project.getStatus() != ProjectStatus.ASSIGNED) {
@@ -128,7 +147,6 @@ public class ProjectServiceImpl implements ProjectService {
         String assignedWorker = project.getAssignedWorkerId();
         project.setStatus(ProjectStatus.COMPLETED);
         projectRepository.save(project);
-        // Update worker's completed project count
         if (assignedWorker != null) {
             workerCvRepository.findByWorkerId(assignedWorker).ifPresent(cv -> {
                 cv.setCompletedProjects(cv.getCompletedProjects() + 1);
@@ -141,6 +159,12 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "projects-by-id", key = "#projectId"),
+            @CacheEvict(value = "projects-my", allEntries = true),
+            @CacheEvict(value = "projects-all", allEntries = true),
+            @CacheEvict(value = "projects-assigned", allEntries = true)
+    })
     public ProjectResponse markFailed(String projectId, UserPrincipal principal) {
         Project project = findAndVerifyOwner(projectId, principal);
         if (project.getStatus() != ProjectStatus.ASSIGNED) {
@@ -249,6 +273,12 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "projects-by-id", key = "#projectId"),
+            @CacheEvict(value = "projects-all", allEntries = true),
+            @CacheEvict(value = "projects-open", allEntries = true),
+            @CacheEvict(value = "projects-assigned", allEntries = true)
+    })
     public ProjectResponse assignWorker(String projectId, String workerId, UserPrincipal principal) {
         if (!"ADMIN".equals(principal.getRole())) {
             throw new ForbiddenException("Only admins can assign workers to projects.");

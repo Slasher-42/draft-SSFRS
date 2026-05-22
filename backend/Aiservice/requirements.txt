@@ -9,3 +9,4 @@ kafka-python-ng
 pydantic==2.9.2
 pydantic-settings==2.6.1
 pillow==11.0.0
+redis==5.2.1

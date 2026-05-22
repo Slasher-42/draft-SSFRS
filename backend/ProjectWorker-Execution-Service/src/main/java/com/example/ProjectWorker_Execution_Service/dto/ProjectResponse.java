@@ -2,6 +2,7 @@ package com.example.ProjectWorker_Execution_Service.dto;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.extern.jackson.Jacksonized;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ import java.util.List;
 
 @Getter
 @Builder
+@Jacksonized
 public class ProjectResponse {
     private String id;
     private String providerId;

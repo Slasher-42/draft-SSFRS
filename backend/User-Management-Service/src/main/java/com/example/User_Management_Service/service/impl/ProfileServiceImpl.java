@@ -7,6 +7,8 @@ import com.example.User_Management_Service.model.*;
 import com.example.User_Management_Service.repository.*;
 import com.example.User_Management_Service.service.ProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final UserEventPublisher userEventPublisher;
 
     @Override
+    @CacheEvict(value = "profiles-provider", key = "#userId")
     public ProfileDtos.ProjectProviderProfileResponse saveProviderProfile(String userId, ProfileDtos.ProjectProviderProfileRequest request) {
         ProfileDtos.ProjectProviderProfileResponse response = saveProviderProfileTransactional(userId, request);
         userEventPublisher.publishProjectProviderProfileSaved(userId);
@@ -44,6 +47,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Cacheable(value = "profiles-provider", key = "#userId")
     public ProfileDtos.ProjectProviderProfileResponse getProviderProfile(String userId) {
         ProjectProviderProfile profile = providerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new UserNotFoundException("Provider profile not found for user: " + userId));
@@ -51,6 +55,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @CacheEvict(value = "profiles-worker", key = "#userId")
     public ProfileDtos.WorkerProfileResponse saveWorkerProfile(String userId, ProfileDtos.WorkerProfileRequest request) {
         ProfileDtos.WorkerProfileResponse response = saveWorkerProfileTransactional(userId, request);
         userEventPublisher.publishWorkerProfileSaved(userId);
@@ -74,6 +79,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Cacheable(value = "profiles-worker", key = "#userId")
     public ProfileDtos.WorkerProfileResponse getWorkerProfile(String userId) {
         WorkerProfile profile = workerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new UserNotFoundException("Worker profile not found for user: " + userId));
@@ -82,6 +88,7 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "profiles-evaluator", key = "#userId")
     public ProfileDtos.EvaluatorProfileResponse saveEvaluatorProfile(String userId, ProfileDtos.EvaluatorProfileRequest request) {
         User user = findUserById(userId);
         EvaluatorProfile profile = evaluatorProfileRepository.findByUserId(userId)
@@ -95,6 +102,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Cacheable(value = "profiles-evaluator", key = "#userId")
     public ProfileDtos.EvaluatorProfileResponse getEvaluatorProfile(String userId) {
         EvaluatorProfile profile = evaluatorProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new UserNotFoundException("Evaluator profile not found for user: " + userId));
@@ -103,6 +111,7 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "profiles-refund-office", key = "#userId")
     public ProfileDtos.RefundOfficeProfileResponse saveRefundOfficeProfile(String userId, ProfileDtos.RefundOfficeProfileRequest request) {
         User user = findUserById(userId);
         RefundOfficeProfile profile = refundOfficeProfileRepository.findByUserId(userId)
@@ -115,6 +124,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Cacheable(value = "profiles-refund-office", key = "#userId")
     public ProfileDtos.RefundOfficeProfileResponse getRefundOfficeProfile(String userId) {
         RefundOfficeProfile profile = refundOfficeProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new UserNotFoundException("Refund office profile not found for user: " + userId));
