@@ -25,6 +25,18 @@ function saveSet(key: string, s: Set<string>) {
   localStorage.setItem(key, JSON.stringify([...s]));
 }
 
+function toAdminReasoning(reasoning: string, workerName: string): string {
+  const first = workerName.split(" ")[0];
+  return reasoning
+    .replace(/\bYour\b/g, `${first}'s`)
+    .replace(/\byour\b/g, "their")
+    .replace(/\bYou\b/g, "They")
+    .replace(/\byou\b/g, "they")
+    .replace(/\byourself\b/g, "themselves")
+    .replace(/\bit's essential to add their\b/g, "it's essential for them to add their")
+    .replace(/\bit's essential that they\b/g, "it's essential that they");
+}
+
 interface AlumniWorker extends WorkerCvResponse {
   interviewScore?: number;
   interviewStatus?: "pending" | "submitted" | "not_started";
@@ -382,7 +394,7 @@ export default function AdminAlumniPage() {
               onClick={(e) => e.stopPropagation()}>
               <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: "var(--color-border)" }}>
                 <div>
-                  <p className="font-semibold" style={{ color: "var(--color-foreground)" }}>AI Rating Reason</p>
+                  <p className="font-semibold" style={{ color: "var(--color-foreground)" }}>AI Rating Analysis</p>
                   <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
                     {reasoningWorker.workerName} · {reasoningWorker.specialization} · {reasoningWorker.ratingScore.toFixed(1)} / 10
                   </p>
@@ -398,11 +410,11 @@ export default function AdminAlumniPage() {
                   style={{ backgroundColor: "var(--color-background)", borderColor: "var(--color-border)" }}>
                   {reasoningWorker.ratingReasoning ? (
                     <p className="text-sm leading-relaxed" style={{ color: "var(--color-foreground)" }}>
-                      {reasoningWorker.ratingReasoning}
+                      {toAdminReasoning(reasoningWorker.ratingReasoning, reasoningWorker.workerName)}
                     </p>
                   ) : (
                     <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                      No reasoning available yet. The AI will generate feedback once the worker&apos;s rating is processed.
+                      No analysis available yet. The AI will generate an assessment once this worker&apos;s rating is processed.
                     </p>
                   )}
                 </div>

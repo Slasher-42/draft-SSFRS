@@ -165,6 +165,14 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
         if (allCvs.isEmpty()) return List.of();
 
+        List<WorkerCv> relevantCvs = allCvs.stream()
+                .filter(cv -> isWorkerRelevantToProject(
+                        cv.getSpecialization(), project.getRequiredSkills(), project.getTitle()))
+                .collect(Collectors.toList());
+        if (!relevantCvs.isEmpty()) {
+            allCvs = relevantCvs;
+        }
+
         List<Map<String, Object>> workers = allCvs.stream().map(cv -> {
             Map<String, Object> w = new HashMap<>();
             w.put("worker_id", cv.getWorkerId());
@@ -197,7 +205,9 @@ public class ProjectServiceImpl implements ProjectService {
             Map<String, Object> aiResponse = MAPPER.readValue(response.body(), Map.class);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> ranked = (List<Map<String, Object>>) aiResponse.get("ranked_workers");
-            return ranked.stream().map(r -> RankedWorkerResponse.builder()
+            return ranked.stream()
+                    .filter(r -> ((Number) r.get("match_score")).doubleValue() > 15)
+                    .map(r -> RankedWorkerResponse.builder()
                     .workerId((String) r.get("worker_id"))
                     .workerName((String) r.get("worker_name"))
                     .workerEmail((String) r.get("worker_email"))
@@ -217,6 +227,21 @@ public class ProjectServiceImpl implements ProjectService {
                             .build())
                     .collect(Collectors.toList());
         }
+    }
+
+    private static final Set<String> FIELD_STOP_WORDS = Set.of(
+            "and", "the", "of", "in", "for", "with", "a", "an", "to", "or", "on", "at", "by", "as"
+    );
+
+    private boolean isWorkerRelevantToProject(String workerSpec, String requiredSkills, String title) {
+        if (workerSpec == null || workerSpec.isBlank()) return false;
+        String context = ((requiredSkills != null ? requiredSkills : "") + " " + (title != null ? title : "")).toLowerCase();
+        for (String word : workerSpec.toLowerCase().split("[\\s&,/\\-]+")) {
+            if (word.length() > 3 && !FIELD_STOP_WORDS.contains(word) && context.contains(word)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

@@ -128,6 +128,9 @@ export default function WorkerCvPage() {
       return;
     }
     setSaving(true);
+    console.log("[CV Submit] credentials being sent:", JSON.stringify(data.additionalCredentials));
+    console.log("[CV Submit] yearsOfExperience:", data.yearsOfExperience);
+    console.log("[CV Submit] specialization:", finalSpec);
     try {
       const previousScore = existing?.ratingScore ?? -1;
       const updated = await workerCvService.submitOrUpdateCv(
@@ -314,12 +317,18 @@ export default function WorkerCvPage() {
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-              Additional Credentials <span style={{ color: "var(--color-muted-foreground)" }}>(optional)</span>
+              Additional Credentials
+              <span className="ml-1 text-xs font-normal" style={{ color: "#f59e0b" }}>
+                ⭐ fills this to improve your AI rating
+              </span>
             </label>
-            <textarea {...register("additionalCredentials")} rows={3}
-              placeholder="Certifications, portfolio links, notable achievements…"
+            <textarea {...register("additionalCredentials")} rows={4}
+              placeholder="e.g. Licensed General Contractor, OSHA Certified, Diploma in Civil Engineering, 5-star rating on previous platform…"
               className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none resize-none"
               style={{ ...inputStyle }} />
+            <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              List your certifications, licenses, diplomas, or notable achievements. The AI uses this to raise your score.
+            </p>
           </div>
 
           <div className="space-y-1.5">

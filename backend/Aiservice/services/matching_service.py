@@ -24,7 +24,7 @@ def rank_candidates(project: dict, workers: list[dict], db: Session) -> list[dic
     ])
 
     prompt = f"""You are an AI matching engine for SSFRS — a professional service platform.
-Your task is to rank workers for a specific project based on skill match and overall quality.
+Your task is to rank workers for a project based on field relevance and quality.
 
 PROJECT:
 - Title: {project.get('title')}
@@ -34,12 +34,10 @@ PROJECT:
 AVAILABLE WORKERS:
 {workers_text}
 
-Rank ALL workers from most to least suitable. For each worker assign a match_score (0–100).
-Consider:
-1. Specialization match with required skills (most important)
-2. AI Overall Rating score
-3. Years of experience
-4. Listed credentials
+STRICT RULES:
+1. ONLY include workers whose specialization directly matches the project field. A software/IT worker must NOT appear for a construction project. A construction worker must NOT appear for a software project. Apply this rule firmly across all industries.
+2. For workers who DO match the field, rank them by: specialization fit (most important), AI Overall Rating, years of experience, credentials.
+3. Assign match_score 0 to any worker whose specialization is unrelated to the project field — they will be excluded.
 
 Respond ONLY with valid JSON, no markdown:
 {{
@@ -47,12 +45,12 @@ Respond ONLY with valid JSON, no markdown:
     {{
       "worker_id": "<id>",
       "match_score": <0-100 float>,
-      "match_reasoning": "<one clear sentence why this rank>"
+      "match_reasoning": "<one clear sentence explaining the match or exclusion>"
     }}
   ]
 }}
 
-List ALL {len(workers)} workers in ranked order."""
+Only list workers who are relevant to this project."""
 
     result = chat_json(prompt, max_tokens=2000)
     ranked_ids = {r["worker_id"]: r for r in result.get("ranked_workers", [])}
@@ -75,4 +73,4 @@ List ALL {len(workers)} workers in ranked order."""
         })
 
     output.sort(key=lambda x: x["match_score"], reverse=True)
-    return output
+    return [w for w in output if w["match_score"] > 15]
