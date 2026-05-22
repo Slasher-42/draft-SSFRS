@@ -17,6 +17,7 @@ public class WorkerCvResponse {
     private String specialization;
     private String additionalCredentials;
     private double ratingScore;
+    private String ratingReasoning;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

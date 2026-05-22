@@ -18,7 +18,7 @@ public interface WorkerCvService {
 
     List<WorkerCvResponse> getAllCvs();
 
-    void updateRatingScore(String workerId, double score);
+    void updateRatingScore(String workerId, double score, String reasoning);
 
     void incrementCompletedProjects(String workerId);
 

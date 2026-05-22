@@ -10,6 +10,7 @@ export interface WorkerCvResponse {
   specialization: string;
   additionalCredentials: string | null;
   ratingScore: number;
+  ratingReasoning: string | null;
   createdAt: string;
   updatedAt: string;
 }

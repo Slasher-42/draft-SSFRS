@@ -99,9 +99,10 @@ public class WorkerCvServiceImpl implements WorkerCvService {
 
     @Override
     @Transactional
-    public void updateRatingScore(String workerId, double score) {
+    public void updateRatingScore(String workerId, double score, String reasoning) {
         workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
             cv.setRatingScore(score);
+            cv.setRatingReasoning(reasoning);
             workerCvRepository.save(cv);
         });
     }
@@ -135,6 +136,7 @@ public class WorkerCvServiceImpl implements WorkerCvService {
                 .specialization(cv.getSpecialization())
                 .additionalCredentials(cv.getAdditionalCredentials())
                 .ratingScore(cv.getRatingScore())
+                .ratingReasoning(cv.getRatingReasoning())
                 .createdAt(cv.getCreatedAt())
                 .updatedAt(cv.getUpdatedAt())
                 .build();

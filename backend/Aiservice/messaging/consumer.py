@@ -38,7 +38,10 @@ def handle_worker_cv_submitted(payload: str):
             rating = rating_service.rate_worker(worker_data, db)
             httpx.patch(
                 f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}/rating",
-                json={"ratingScore": rating.overall_score},
+                json={
+                    "ratingScore": rating.overall_score,
+                    "ratingReasoning": rating.reasoning,
+                },
                 headers=INTERNAL_HEADERS,
                 timeout=10,
             )

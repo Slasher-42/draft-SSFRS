@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award, Star, CheckCircle, XCircle, Search,
-  Briefcase, Mail, Loader2, Video, User,
+  Briefcase, Mail, Loader2, Video, User, MessageSquare, X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
@@ -40,6 +40,7 @@ export default function AdminAlumniPage() {
   const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [actioning, setActioning] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "approved" | "rejected" | "pending">("all");
+  const [reasoningWorker, setReasoningWorker] = useState<AlumniWorker | null>(null);
 
   useEffect(() => {
     setApproved(loadSet(APPROVED_KEY));
@@ -270,9 +271,16 @@ export default function AdminAlumniPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
-                          <span className="flex items-center gap-1" style={{ color: "var(--color-muted-foreground)" }}>
+                          <span className="flex items-center gap-1.5" style={{ color: "var(--color-muted-foreground)" }}>
                             <Award className="h-3.5 w-3.5" />
                             AI Rating
+                            <button
+                              onClick={() => setReasoningWorker(w)}
+                              className="flex items-center gap-0.5 rounded px-1.5 py-0.5 border transition hover:opacity-80"
+                              style={{ borderColor: "var(--color-border)", color: "var(--color-primary)", fontSize: "10px" }}>
+                              <MessageSquare className="h-2.5 w-2.5" />
+                              Reason
+                            </button>
                           </span>
                           <span style={{ color: aiBar.color }}>{w.ratingScore.toFixed(1)} / 10</span>
                         </div>
@@ -358,6 +366,58 @@ export default function AdminAlumniPage() {
           </AnimatePresence>
         </div>
       )}
+
+      <AnimatePresence>
+        {reasoningWorker && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onClick={() => setReasoningWorker(null)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative w-full max-w-lg rounded-2xl border shadow-xl"
+              style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: "var(--color-border)" }}>
+                <div>
+                  <p className="font-semibold" style={{ color: "var(--color-foreground)" }}>AI Rating Reason</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+                    {reasoningWorker.workerName} · {reasoningWorker.specialization} · {reasoningWorker.ratingScore.toFixed(1)} / 10
+                  </p>
+                </div>
+                <button onClick={() => setReasoningWorker(null)}
+                  className="rounded-lg p-1.5 transition hover:opacity-70"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-5">
+                <div className="rounded-xl p-4 border"
+                  style={{ backgroundColor: "var(--color-background)", borderColor: "var(--color-border)" }}>
+                  {reasoningWorker.ratingReasoning ? (
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--color-foreground)" }}>
+                      {reasoningWorker.ratingReasoning}
+                    </p>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                      No reasoning available yet. The AI will generate feedback once the worker&apos;s rating is processed.
+                    </p>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={() => setReasoningWorker(null)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition"
+                    style={{ backgroundColor: "var(--color-primary)" }}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -44,6 +44,9 @@ public class WorkerCv {
     @Builder.Default
     private double ratingScore = 0.0;
 
+    @Column(columnDefinition = "TEXT")
+    private String ratingReasoning;
+
     @Column(nullable = false, columnDefinition = "integer default 0")
     @Builder.Default
     private int completedProjects = 0;

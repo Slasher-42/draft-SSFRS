@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { motion } from "framer-motion";
-import { FileText, Upload, Star, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FileText, Upload, Star, ChevronDown, MessageSquare, ChevronUp } from "lucide-react";
 import { toast } from "react-toastify";
 import { workerCvService, WorkerCvResponse } from "@/lib/workerCvService";
 
@@ -62,6 +62,7 @@ export default function WorkerCvPage() {
   const [fieldDropdown, setFieldDropdown] = useState("");
   const [customField, setCustomField] = useState("");
   const [showCustom, setShowCustom] = useState(false);
+  const [showReasoning, setShowReasoning] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -141,28 +142,67 @@ export default function WorkerCvPage() {
 
       {existing && (
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-4 rounded-xl border p-4"
+          className="rounded-xl border overflow-hidden"
           style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
-          <div className="flex items-center justify-center h-12 w-12 rounded-full"
-            style={{ backgroundColor: "var(--color-primary-50, #f5f5f5)" }}>
-            <Star className="h-6 w-6" style={{ color: "#f59e0b" }} />
+          <div className="flex items-center gap-4 p-4">
+            <div className="flex items-center justify-center h-12 w-12 rounded-full flex-shrink-0"
+              style={{ backgroundColor: "var(--color-primary-50, #f5f5f5)" }}>
+              <Star className="h-6 w-6" style={{ color: "#f59e0b" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
+                AI Rating Score
+              </p>
+              <p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>
+                {existing.ratingScore.toFixed(1)}
+                <span className="text-sm font-normal ml-1" style={{ color: "var(--color-muted-foreground)" }}>/10</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {existing.cvFileUrl && (
+                <a href={existing.cvFileUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm"
+                  style={{ color: "var(--color-primary)" }}>
+                  <FileText className="h-4 w-4" />
+                  View CV
+                </a>
+              )}
+              <button
+                onClick={() => setShowReasoning((v) => !v)}
+                className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:opacity-80"
+                style={{ borderColor: "var(--color-border)", color: "var(--color-primary)", backgroundColor: "var(--color-background)" }}>
+                <MessageSquare className="h-3.5 w-3.5" />
+                {showReasoning ? "Hide Reason" : "View Reason"}
+                {showReasoning ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-              AI Rating Score
-            </p>
-            <p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>
-              {existing.ratingScore.toFixed(1)}
-            </p>
-          </div>
-          {existing.cvFileUrl && (
-            <a href={existing.cvFileUrl} target="_blank" rel="noopener noreferrer"
-              className="ml-auto flex items-center gap-1 text-sm"
-              style={{ color: "var(--color-primary)" }}>
-              <FileText className="h-4 w-4" />
-              View CV
-            </a>
-          )}
+
+          <AnimatePresence>
+            {showReasoning && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                className="overflow-hidden border-t"
+                style={{ borderColor: "var(--color-border)" }}>
+                <div className="p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                    style={{ color: "var(--color-muted-foreground)" }}>
+                    AI Feedback — What to improve
+                  </p>
+                  {existing.ratingReasoning ? (
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--color-foreground)" }}>
+                      {existing.ratingReasoning}
+                    </p>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                      No feedback yet. Make sure your CV file is uploaded and your profile is complete — the AI will generate personalized feedback once your rating is processed.
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
 

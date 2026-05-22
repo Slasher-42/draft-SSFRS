@@ -76,7 +76,8 @@ public class WorkerCvController {
             @RequestBody Map<String, Object> body) {
         validateKey(key);
         double score = Double.parseDouble(body.get("ratingScore").toString());
-        workerCvService.updateRatingScore(workerId, score);
+        String reasoning = body.get("ratingReasoning") != null ? body.get("ratingReasoning").toString() : null;
+        workerCvService.updateRatingScore(workerId, score, reasoning);
         return ResponseEntity.noContent().build();
     }
 

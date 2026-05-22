@@ -34,7 +34,7 @@ Respond ONLY with valid JSON, no markdown, no explanation outside JSON:
   "ratings_score": <float 0-10>,
   "failure_score": <float 0-10>,
   "overall_score": <float 0-10>,
-  "reasoning": "<2-3 sentence explanation of the rating>"
+  "reasoning": "<Write 3-5 clear sentences addressed directly to the worker. First sentence: summarise the overall rating and why. Second sentence: highlight what is strong in their profile. Third sentence: state the most important thing they should add or improve in their CV to get a higher score (be specific — e.g. 'Add your certifications or credentials', 'Increase the number of completed projects', 'Reduce past claim failures'). Fourth sentence (if applicable): mention a second improvement area. Always be constructive and specific.>"
 }}"""
 
     result = chat_json(prompt)
