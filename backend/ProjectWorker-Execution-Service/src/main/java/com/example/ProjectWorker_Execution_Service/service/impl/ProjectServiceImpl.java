@@ -154,10 +154,13 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public List<RankedWorkerResponse> getRankedCandidates(String projectId, UserPrincipal principal) {
-        if (!"ADMIN".equals(principal.getRole())) {
-            throw new ForbiddenException("Only admins can view ranked candidates.");
-        }
         Project project = findProject(projectId);
+        boolean isAdmin = "ADMIN".equals(principal.getRole());
+        boolean isOwner = "PROVIDER".equals(principal.getRole())
+                && project.getProviderId().equals(principal.getUserId());
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException("Access denied.");
+        }
         List<WorkerCv> allCvs = workerCvRepository.findAll().stream()
                 .filter(cv -> cv.getSpecialization() != null
                            && cv.getWorkerName() != null
