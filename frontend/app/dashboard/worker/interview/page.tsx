@@ -51,11 +51,20 @@ export default function WorkerInterviewPage() {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /* speech */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [speechSupported] = useState(() =>
+    typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+  );
+
   /* interview state */
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [transcript, setTranscript] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [refining, setRefining] = useState(false);
 
   /* Check if worker meets criteria */
   useEffect(() => {
@@ -83,11 +92,63 @@ export default function WorkerInterviewPage() {
     }
   }, []);
 
+  const startSpeechRecognition = useCallback(() => {
+    if (!speechSupported) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += text + " ";
+        else interimText += text;
+      }
+      if (finalText) setTranscript((prev) => prev + finalText);
+      setInterimTranscript(interimText);
+    };
+    recognition.onend = () => {
+      setInterimTranscript("");
+      // Auto-restart if we were not explicitly stopped (recognitionRef still set)
+      if (recognitionRef.current) {
+        try { recognition.start(); } catch { /* already starting */ }
+      }
+    };
+    recognition.start();
+    recognitionRef.current = recognition;
+  }, [speechSupported]);
+
+  const stopSpeechRecognition = useCallback(() => {
+    // Null the ref FIRST so onend does not auto-restart after we stop
+    const r = recognitionRef.current;
+    recognitionRef.current = null;
+    r?.stop();
+    setInterimTranscript("");
+  }, []);
+
+  /* Speak question only on ready stage — never while mic is recording */
+  useEffect(() => {
+    if (stage === "ready") {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(QUESTIONS[currentQ]);
+      utterance.rate = 0.92;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+    return () => { window.speechSynthesis.cancel(); };
+  }, [stage, currentQ]);
+
   /* Stop camera when done */
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (timerRef.current) clearInterval(timerRef.current);
+      window.speechSynthesis.cancel();
+      recognitionRef.current?.stop();
     };
   }, []);
 
@@ -115,6 +176,7 @@ export default function WorkerInterviewPage() {
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.start(250);
     setRecording(true);
+    startSpeechRecognition();
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -131,7 +193,8 @@ export default function WorkerInterviewPage() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     recorderRef.current?.stop();
     setRecording(false);
-  }, []);
+    stopSpeechRecognition();
+  }, [stopSpeechRecognition]);
 
   const saveAnswer = () => {
     const elapsed = TIME_LIMIT - timeLeft;
@@ -147,6 +210,7 @@ export default function WorkerInterviewPage() {
       setCurrentQ((q) => q + 1);
       setTranscript("");
       setTimeLeft(TIME_LIMIT);
+      setStage("ready");
     } else {
       setStage("reviewing");
     }
@@ -373,7 +437,7 @@ export default function WorkerInterviewPage() {
                 {QUESTIONS[currentQ]}
               </p>
               <button
-                onClick={() => { setStage("question"); startRecording(); }}
+                onClick={() => { window.speechSynthesis.cancel(); setStage("question"); startRecording(); }}
                 className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white"
                 style={{ backgroundColor: "#22c55e" }}>
                 <Play className="h-4 w-4" />
@@ -419,25 +483,53 @@ export default function WorkerInterviewPage() {
                 <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-                  Your answer in writing (optional — supports your verbal response)
+                <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                  {speechSupported
+                    ? <><span className="h-2 w-2 rounded-full bg-red-500 animate-pulse inline-block" /> Live transcript (auto-filled from your voice)</>
+                    : "Your answer in writing (speech not supported in this browser)"}
                 </label>
                 <textarea
-                  className="w-full h-40 rounded-lg border px-3 py-2 text-sm focus:outline-none resize-none"
+                  className="w-full h-32 rounded-lg border px-3 py-2 text-sm focus:outline-none resize-none"
                   style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}
-                  placeholder="Type key points of your answer here…"
+                  placeholder={speechSupported ? "Your spoken words will appear here automatically…" : "Type key points of your answer here…"}
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)} />
+                {interimTranscript && (
+                  <p className="text-xs px-1 italic" style={{ color: "var(--color-muted-foreground)" }}>
+                    {interimTranscript}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Controls */}
             <div className="flex gap-3">
-              <button onClick={() => { stopRecording(); saveAnswer(); }}
-                className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white"
+              <button
+                disabled={refining}
+                onClick={async () => {
+                  stopRecording();
+                  const raw = transcript.trim();
+                  if (raw && speechSupported) {
+                    setRefining(true);
+                    try {
+                      const res = await fetch("http://localhost:8083/api/ai/interview/refine-transcript", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ raw_transcript: raw, question: QUESTIONS[currentQ] }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        if (data.refined_transcript) setTranscript(data.refined_transcript);
+                      }
+                    } catch { /* keep raw transcript on failure */ }
+                    setRefining(false);
+                  }
+                  saveAnswer();
+                }}
+                className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60"
                 style={{ backgroundColor: "#ef4444" }}>
-                <StopCircle className="h-4 w-4" />
-                Stop & Save Answer
+                {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <StopCircle className="h-4 w-4" />}
+                {refining ? "Cleaning up…" : "Stop & Save Answer"}
               </button>
               <button onClick={toggleMute}
                 className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium border transition"

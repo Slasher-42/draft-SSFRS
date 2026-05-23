@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from database import create_tables, SessionLocal
 from messaging.consumer import start_consumer, retrigger_unrated_workers
-from routers import rating, matching, claim, geolocation
+from routers import rating, matching, claim, geolocation, interview
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ app.include_router(rating.router)
 app.include_router(matching.router)
 app.include_router(claim.router)
 app.include_router(geolocation.router)
+app.include_router(interview.router)
 
 
 @app.get("/api/health")
