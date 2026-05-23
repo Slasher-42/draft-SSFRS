@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileSignature, CheckCircle, Clock, Shield, Loader2, Eye, RefreshCw } from "lucide-react";
+import { FileSignature, CheckCircle, Clock, Shield, Loader2, Eye, RefreshCw, Phone, Mail, User } from "lucide-react";
 import { toast } from "react-toastify";
 import { contractService, type ContractResponse } from "@/lib/contractService";
 import { projectService, type ProjectResponse } from "@/lib/projectService";
+import { userService } from "@/lib/userService";
 
 export default function ContractPage({ role }: { role: "PROVIDER" | "WORKER" }) {
   const [contracts, setContracts] = useState<ContractResponse[]>([]);
@@ -26,15 +27,51 @@ export default function ContractPage({ role }: { role: "PROVIDER" | "WORKER" }) 
       const projectList = assignedProjects.status === "fulfilled" ? assignedProjects.value : [];
       setProjects(projectList);
 
-      /* Auto-create contracts for assigned projects that don't have one */
       const existing = new Set(contractList.map((c) => c.projectId));
-      const created: ContractResponse[] = [...contractList];
+      const created: ContractResponse[] = [];
+
+      await Promise.allSettled(
+        contractList.map(async (c) => {
+          const project = projectList.find((p) => p.id === c.projectId);
+          if (!project) { created.push(c); return; }
+          const needsRefresh = !c.workerPhone || !c.providerPhone
+            || c.workerName === "Worker" || !c.workerName?.includes(" ")
+            || !c.providerName?.includes(" ");
+          if (!needsRefresh) { created.push(c); return; }
+          try {
+            const [workerUser, providerUser] = await Promise.allSettled([
+              userService.getUser(project.assignedWorkerId!),
+              userService.getUser(project.providerId),
+            ]);
+            const refreshed = await contractService.getOrCreateForProject(c.projectId, {
+              workerName:    workerUser.status === "fulfilled" ? workerUser.value.fullName   : undefined,
+              workerEmail:   workerUser.status === "fulfilled" ? workerUser.value.email      : undefined,
+              workerPhone:   workerUser.status === "fulfilled" ? workerUser.value.phone      : undefined,
+              providerName:  providerUser.status === "fulfilled" ? providerUser.value.fullName  : undefined,
+              providerEmail: providerUser.status === "fulfilled" ? providerUser.value.email     : undefined,
+              providerPhone: providerUser.status === "fulfilled" ? providerUser.value.phone     : undefined,
+            });
+            created.push(refreshed);
+          } catch { created.push(c); }
+        })
+      );
       await Promise.allSettled(
         projectList
           .filter((p) => p.assignedWorkerId && !existing.has(p.id))
           .map(async (p) => {
             try {
-              const c = await contractService.getOrCreateForProject(p.id);
+              const [workerUser, providerUser] = await Promise.allSettled([
+                userService.getUser(p.assignedWorkerId!),
+                userService.getUser(p.providerId),
+              ]);
+              const c = await contractService.getOrCreateForProject(p.id, {
+                workerName:    workerUser.status === "fulfilled" ? workerUser.value.fullName   : undefined,
+                workerEmail:   workerUser.status === "fulfilled" ? workerUser.value.email      : undefined,
+                workerPhone:   workerUser.status === "fulfilled" ? workerUser.value.phone      : undefined,
+                providerName:  providerUser.status === "fulfilled" ? providerUser.value.fullName  : undefined,
+                providerEmail: providerUser.status === "fulfilled" ? providerUser.value.email     : undefined,
+                providerPhone: providerUser.status === "fulfilled" ? providerUser.value.phone     : undefined,
+              });
               created.push(c);
             } catch { /* ok */ }
           })
@@ -208,17 +245,43 @@ export default function ContractPage({ role }: { role: "PROVIDER" | "WORKER" }) 
                   Agreement No. {viewing.id.slice(0, 8).toUpperCase()}
                 </p>
               </div>
-              <div className="space-y-3 text-sm" style={{ color: "var(--color-foreground)" }}>
-                <p><strong>Project:</strong> {viewing.projectTitle}</p>
-                {project && (
-                  <>
-                    <p><strong>Scope of Work:</strong> {project.scopeOfWork}</p>
-                    <p><strong>Budget:</strong> {Number(project.budget).toLocaleString()}</p>
-                    <p><strong>Deadline:</strong> {new Date(project.deadline).toLocaleDateString()}</p>
-                  </>
-                )}
-                <p><strong>Worker:</strong> {viewing.workerName}</p>
-                <p><strong>Provider:</strong> {viewing.providerName}</p>
+              <div className="space-y-4 text-sm" style={{ color: "var(--color-foreground)" }}>
+
+                {/* Project details */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-widest"
+                    style={{ color: "var(--color-muted-foreground)" }}>Project</p>
+                  <p><strong>{viewing.projectTitle}</strong></p>
+                  {project && (
+                    <>
+                      <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{project.scopeOfWork}</p>
+                      <div className="flex gap-4 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                        <span>Budget: <strong style={{ color: "var(--color-foreground)" }}>${Number(project.budget).toLocaleString()}</strong></span>
+                        <span>Deadline: <strong style={{ color: "var(--color-foreground)" }}>{new Date(project.deadline).toLocaleDateString()}</strong></span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="border-t" style={{ borderColor: "var(--color-border)" }} />
+
+                {/* Parties */}
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Worker */}
+                  <PartyCard
+                    label="Worker (Service Provider)"
+                    name={viewing.workerName}
+                    email={viewing.workerEmail}
+                    phone={viewing.workerPhone}
+                  />
+                  {/* Project Provider */}
+                  <PartyCard
+                    label="Project Provider (Client)"
+                    name={viewing.providerName}
+                    email={viewing.providerEmail}
+                    phone={viewing.providerPhone}
+                  />
+                </div>
               </div>
               <div className="rounded-lg p-4 text-xs space-y-2"
                 style={{ backgroundColor: "var(--color-neutral-50)", color: "var(--color-muted-foreground)" }}>
@@ -245,6 +308,42 @@ export default function ContractPage({ role }: { role: "PROVIDER" | "WORKER" }) 
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function PartyCard({ label, name, email, phone }: {
+  label: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+}) {
+  return (
+    <div className="rounded-lg border p-3 space-y-2"
+      style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-neutral-50)" }}>
+      <p className="text-xs font-semibold uppercase tracking-widest"
+        style={{ color: "var(--color-muted-foreground)" }}>{label}</p>
+      <div className="flex items-center gap-2 text-sm">
+        <User className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
+        <span className="font-medium" style={{ color: "var(--color-foreground)" }}>{name}</span>
+      </div>
+      {email && (
+        <div className="flex items-center gap-2 text-xs">
+          <Mail className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
+          <span style={{ color: "var(--color-muted-foreground)" }}>{email}</span>
+        </div>
+      )}
+      {phone && phone.trim() ? (
+        <div className="flex items-center gap-2 text-xs">
+          <Phone className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
+          <span style={{ color: "var(--color-muted-foreground)" }}>{phone}</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-xs">
+          <Phone className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--color-neutral-300)" }} />
+          <span style={{ color: "var(--color-neutral-400)" }}>No phone on file</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 package com.example.ProjectWorker_Execution_Service.controller;
 
+import com.example.ProjectWorker_Execution_Service.dto.ContractPartyDetailsRequest;
 import com.example.ProjectWorker_Execution_Service.dto.ContractResponse;
 import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
@@ -27,8 +28,9 @@ public class ContractController {
     @PostMapping("/project/{projectId}")
     public ResponseEntity<ContractResponse> getOrCreateForProject(
             @PathVariable String projectId,
+            @RequestBody(required = false) ContractPartyDetailsRequest details,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(contractService.getOrCreateForProject(projectId, principal));
+        return ResponseEntity.ok(contractService.getOrCreateForProject(projectId, details, principal));
     }
 
     @PatchMapping("/{contractId}/sign")

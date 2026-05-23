@@ -4,10 +4,17 @@ export interface ContractResponse {
   id: string;
   projectId: string;
   projectTitle: string;
+
   workerId: string;
   workerName: string;
+  workerEmail: string | null;
+  workerPhone: string | null;
+
   providerId: string;
   providerName: string;
+  providerEmail: string | null;
+  providerPhone: string | null;
+
   workerSigned: boolean;
   workerSignedAt: string | null;
   providerSigned: boolean;
@@ -23,8 +30,11 @@ export const contractService = {
     return res.data;
   },
 
-  async getOrCreateForProject(projectId: string): Promise<ContractResponse> {
-    const res = await executionApi.post<ContractResponse>(`/api/contracts/project/${projectId}`);
+  async getOrCreateForProject(projectId: string, details?: {
+    workerName?: string; workerEmail?: string; workerPhone?: string;
+    providerName?: string; providerEmail?: string; providerPhone?: string;
+  }): Promise<ContractResponse> {
+    const res = await executionApi.post<ContractResponse>(`/api/contracts/project/${projectId}`, details ?? {});
     return res.data;
   },
 
