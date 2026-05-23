@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award, Star, CheckCircle, XCircle, Search,
-  Briefcase, Mail, Loader2, Video, User, MessageSquare, X,
+  Briefcase, Mail, Loader2, Video, User, MessageSquare, X, RefreshCw,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
@@ -47,6 +47,7 @@ interface AlumniWorker extends WorkerCvResponse {
 export default function AdminAlumniPage() {
   const [workers, setWorkers] = useState<AlumniWorker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [approved, setApproved] = useState<Set<string>>(new Set());
   const [rejected, setRejected] = useState<Set<string>>(new Set());
@@ -54,11 +55,9 @@ export default function AdminAlumniPage() {
   const [filter, setFilter] = useState<"all" | "approved" | "rejected" | "pending">("all");
   const [reasoningWorker, setReasoningWorker] = useState<AlumniWorker | null>(null);
 
-  useEffect(() => {
-    setApproved(loadSet(APPROVED_KEY));
-    setRejected(loadSet(REJECTED_KEY));
-
-    Promise.allSettled([
+  const loadWorkers = (isInitial = false) => {
+    if (!isInitial) setRefreshing(true);
+    return Promise.allSettled([
       workerCvService.getAllCvs(),
       interviewService.getAllInterviews(),
     ]).then(([cvsRes, interviewsRes]) => {
@@ -77,7 +76,6 @@ export default function AdminAlumniPage() {
       });
       setWorkers(baseWorkers);
 
-      /* Fetch profile pictures in the background */
       baseWorkers.forEach((w) => {
         userService.getUser(w.workerId)
           .then((u) => {
@@ -87,9 +85,21 @@ export default function AdminAlumniPage() {
               );
             }
           })
-          .catch(() => { /* no profile pic — ok */ });
+          .catch(() => {});
       });
-    }).finally(() => setLoading(false));
+    }).finally(() => {
+      if (isInitial) setLoading(false);
+      else setRefreshing(false);
+    });
+  };
+
+  useEffect(() => {
+    setApproved(loadSet(APPROVED_KEY));
+    setRejected(loadSet(REJECTED_KEY));
+    loadWorkers(true);
+
+    const interval = setInterval(() => loadWorkers(false), 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const approve = async (workerId: string, workerName: string) => {
@@ -151,11 +161,21 @@ export default function AdminAlumniPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 style={{ color: "var(--color-primary-800)" }}>System Alumni</h3>
-        <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-          View all workers with their AI rating and interview scores. Approve or reject their profiles.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 style={{ color: "var(--color-primary-800)" }}>System Alumni</h3>
+          <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+            View all workers with their AI rating and interview scores. Approve or reject their profiles.
+          </p>
+        </div>
+        <button
+          onClick={() => loadWorkers(false)}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition hover:opacity-80 disabled:opacity-50"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-muted-foreground)", backgroundColor: "var(--color-card)" }}>
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
       {/* Stats */}

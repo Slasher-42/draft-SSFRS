@@ -183,7 +183,7 @@ def start_consumer():
                     "worker-claim-response-submitted",
                     bootstrap_servers=settings.kafka_bootstrap_servers,
                     group_id="ai-service-group",
-                    auto_offset_reset="latest",
+                    auto_offset_reset="earliest",
                     enable_auto_commit=True,
                     api_version=(3, 7, 0),
                 )

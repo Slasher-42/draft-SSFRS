@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas import RankCandidatesRequest, RankCandidatesResponse, RankedCandidate
@@ -37,4 +37,5 @@ def rank_candidates(request: RankCandidatesRequest, db: Session = Depends(get_db
         publish_event("ranked-candidate-list-produced", request.project_id)
         return RankCandidatesResponse(project_id=request.project_id, ranked_workers=candidates)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Matching] rank-candidates failed for project {request.project_id}: {type(e).__name__}: {e}")
+        return RankCandidatesResponse(project_id=request.project_id, ranked_workers=[])

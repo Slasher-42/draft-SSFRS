@@ -54,6 +54,15 @@ class MediationReport(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ProjectMatchCache(Base):
+    __tablename__ = "project_match_cache"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    project_id = Column(String, unique=True, nullable=False, index=True)
+    result_json = Column(Text, nullable=False)   # JSON list of ranked worker dicts
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class GeolocationResult(Base):
     __tablename__ = "geolocation_results"
 
