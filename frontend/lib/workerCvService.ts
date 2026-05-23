@@ -11,6 +11,7 @@ export interface WorkerCvResponse {
   additionalCredentials: string | null;
   ratingScore: number;
   ratingReasoning: string | null;
+  approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
   updatedAt: string;
 }
@@ -46,5 +47,9 @@ export const workerCvService = {
   async getAllCvs(): Promise<WorkerCvResponse[]> {
     const res = await executionApi.get<WorkerCvResponse[]>("/api/worker-cv/all");
     return res.data;
+  },
+
+  async setApprovalStatus(workerId: string, approvalStatus: "APPROVED" | "REJECTED" | "PENDING"): Promise<void> {
+    await executionApi.patch(`/api/worker-cv/${workerId}/approval`, { approvalStatus });
   },
 };

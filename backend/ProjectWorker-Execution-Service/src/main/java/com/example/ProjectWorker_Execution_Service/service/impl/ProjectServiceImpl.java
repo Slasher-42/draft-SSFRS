@@ -233,7 +233,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         List<WorkerCv> allCvs = workerCvRepository.findAll().stream()
-                .filter(cv -> cv.getSpecialization() != null
+                .filter(cv -> "APPROVED".equals(cv.getApprovalStatus())
+                           && cv.getSpecialization() != null
                            && cv.getWorkerName() != null
                            && cv.getWorkerEmail() != null)
                 .collect(Collectors.toList());

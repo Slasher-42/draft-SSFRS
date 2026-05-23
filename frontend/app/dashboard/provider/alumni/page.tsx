@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { projectService, type ProjectResponse, type RankedWorkerResponse } from "@/lib/projectService";
+import { workerCvService } from "@/lib/workerCvService";
 import { userService } from "@/lib/userService";
 
 const STRONG_MATCH = 60;
@@ -42,12 +43,31 @@ export default function ProviderAlumniPage() {
 
         await Promise.allSettled(
           myProjects.map(async (p) => {
+            const isTerminal = p.status === "ASSIGNED" || p.status === "COMPLETED" || p.status === "FAILED";
             try {
               const raw = await projectService.getCandidates(p.id);
               const candidates: WorkerCard[] = raw
                 .filter((c) => c.rankScore >= MIN_MATCH)
                 .sort((a, b) => b.rankScore - a.rankScore)
                 .map((c) => ({ ...c, profileImageUrl: null }));
+
+              // For terminal projects, always ensure the assigned worker is present
+              if (isTerminal && p.assignedWorkerId && !candidates.some((c) => c.workerId === p.assignedWorkerId)) {
+                try {
+                  const cv = await workerCvService.getWorkerCv(p.assignedWorkerId);
+                  candidates.unshift({
+                    workerId: cv.workerId,
+                    workerName: cv.workerName,
+                    workerEmail: cv.workerEmail,
+                    specialization: cv.specialization,
+                    yearsOfExperience: cv.yearsOfExperience,
+                    ratingScore: cv.ratingScore,
+                    rankScore: 100,
+                    profileImageUrl: null,
+                  });
+                } catch { /* assigned worker CV not found, show fallback message */ }
+              }
+
               built.push({ project: p, candidates });
             } catch {
               built.push({ project: p, candidates: [] });

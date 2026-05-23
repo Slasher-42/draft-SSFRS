@@ -11,20 +11,6 @@ import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
 import { interviewService, type InterviewResponse } from "@/lib/interviewService";
 import { userService } from "@/lib/userService";
 
-const APPROVED_KEY = "ssfrs_approved_workers";
-const REJECTED_KEY = "ssfrs_rejected_workers";
-
-function loadSet(key: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch { return new Set(); }
-}
-
-function saveSet(key: string, s: Set<string>) {
-  localStorage.setItem(key, JSON.stringify([...s]));
-}
-
 function toAdminReasoning(reasoning: string, workerName: string): string {
   const first = workerName.split(" ")[0];
   return reasoning
@@ -49,8 +35,6 @@ export default function AdminAlumniPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [approved, setApproved] = useState<Set<string>>(new Set());
-  const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [actioning, setActioning] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "approved" | "rejected" | "pending">("all");
   const [reasoningWorker, setReasoningWorker] = useState<AlumniWorker | null>(null);
@@ -94,40 +78,25 @@ export default function AdminAlumniPage() {
   };
 
   useEffect(() => {
-    setApproved(loadSet(APPROVED_KEY));
-    setRejected(loadSet(REJECTED_KEY));
     loadWorkers(true);
-
     const interval = setInterval(() => loadWorkers(false), 15000);
     return () => clearInterval(interval);
   }, []);
 
-  const approve = async (workerId: string, workerName: string) => {
-    setActioning(workerId);
-    await new Promise((r) => setTimeout(r, 700));
-    const newApproved = new Set(approved).add(workerId);
-    const newRejected = new Set(rejected);
-    newRejected.delete(workerId);
-    setApproved(newApproved);
-    setRejected(newRejected);
-    saveSet(APPROVED_KEY, newApproved);
-    saveSet(REJECTED_KEY, newRejected);
-    setActioning(null);
-    toast.success(`${workerName} has been approved.`);
-  };
-
-  const reject = async (workerId: string, workerName: string) => {
-    setActioning(workerId);
-    await new Promise((r) => setTimeout(r, 700));
-    const newRejected = new Set(rejected).add(workerId);
-    const newApproved = new Set(approved);
-    newApproved.delete(workerId);
-    setRejected(newRejected);
-    setApproved(newApproved);
-    saveSet(REJECTED_KEY, newRejected);
-    saveSet(APPROVED_KEY, newApproved);
-    setActioning(null);
-    toast.success(`${workerName}'s profile has been rejected.`);
+  const setApproval = async (worker: AlumniWorker, status: "APPROVED" | "REJECTED" | "PENDING") => {
+    setActioning(worker.workerId);
+    try {
+      await workerCvService.setApprovalStatus(worker.workerId, status);
+      setWorkers((prev) =>
+        prev.map((w) => w.workerId === worker.workerId ? { ...w, approvalStatus: status } : w)
+      );
+      const label = status === "APPROVED" ? "approved" : status === "REJECTED" ? "rejected" : "reset to pending";
+      toast.success(`${worker.workerName} has been ${label}.`);
+    } catch {
+      toast.error("Failed to update approval status.");
+    } finally {
+      setActioning(null);
+    }
   };
 
   const filtered = workers.filter((w) => {
@@ -135,11 +104,10 @@ export default function AdminAlumniPage() {
       w.workerName.toLowerCase().includes(search.toLowerCase()) ||
       w.specialization.toLowerCase().includes(search.toLowerCase()) ||
       w.workerEmail.toLowerCase().includes(search.toLowerCase());
-
     if (!matchSearch) return false;
-    if (filter === "approved") return approved.has(w.workerId);
-    if (filter === "rejected") return rejected.has(w.workerId);
-    if (filter === "pending") return !approved.has(w.workerId) && !rejected.has(w.workerId);
+    if (filter === "approved") return w.approvalStatus === "APPROVED";
+    if (filter === "rejected") return w.approvalStatus === "REJECTED";
+    if (filter === "pending")  return w.approvalStatus === "PENDING";
     return true;
   });
 
@@ -166,6 +134,7 @@ export default function AdminAlumniPage() {
           <h3 style={{ color: "var(--color-primary-800)" }}>System Alumni</h3>
           <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
             View all workers with their AI rating and interview scores. Approve or reject their profiles.
+            Only <strong>Approved</strong> workers appear as candidates in project matching.
           </p>
         </div>
         <button
@@ -181,10 +150,10 @@ export default function AdminAlumniPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total", count: workers.length, color: "var(--color-primary)" },
-          { label: "Approved", count: workers.filter((w) => approved.has(w.workerId)).length, color: "#22c55e" },
-          { label: "Rejected", count: workers.filter((w) => rejected.has(w.workerId)).length, color: "#ef4444" },
-          { label: "Pending", count: workers.filter((w) => !approved.has(w.workerId) && !rejected.has(w.workerId)).length, color: "#f59e0b" },
+          { label: "Total",    count: workers.length,                                          color: "var(--color-primary)" },
+          { label: "Approved", count: workers.filter((w) => w.approvalStatus === "APPROVED").length, color: "#22c55e" },
+          { label: "Rejected", count: workers.filter((w) => w.approvalStatus === "REJECTED").length, color: "#ef4444" },
+          { label: "Pending",  count: workers.filter((w) => w.approvalStatus === "PENDING").length,  color: "#f59e0b" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border p-4 text-center"
             style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
@@ -235,9 +204,9 @@ export default function AdminAlumniPage() {
         <div className="space-y-4">
           <AnimatePresence>
             {filtered.map((w, i) => {
-              const isApproved = approved.has(w.workerId);
-              const isRejected = rejected.has(w.workerId);
-              const aiBar = ratingBar(w.ratingScore, 10);
+              const isApproved = w.approvalStatus === "APPROVED";
+              const isRejected = w.approvalStatus === "REJECTED";
+              const aiBar  = ratingBar(w.ratingScore, 10);
               const intBar = w.interviewScore !== undefined ? ratingBar(w.interviewScore, 100) : null;
 
               return (
@@ -262,12 +231,8 @@ export default function AdminAlumniPage() {
                             initials(w.workerName)
                           )}
                         </div>
-                        {isApproved && (
-                          <CheckCircle className="absolute -bottom-1 -right-1 h-5 w-5 text-green-500 bg-white rounded-full" />
-                        )}
-                        {isRejected && (
-                          <XCircle className="absolute -bottom-1 -right-1 h-5 w-5 text-red-500 bg-white rounded-full" />
-                        )}
+                        {isApproved && <CheckCircle className="absolute -bottom-1 -right-1 h-5 w-5 text-green-500 bg-white rounded-full" />}
+                        {isRejected && <XCircle    className="absolute -bottom-1 -right-1 h-5 w-5 text-red-500  bg-white rounded-full" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -275,7 +240,7 @@ export default function AdminAlumniPage() {
                           <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                             style={{
                               backgroundColor: isApproved ? "#22c55e20" : isRejected ? "#ef444420" : "#f59e0b20",
-                              color: isApproved ? "#22c55e" : isRejected ? "#ef4444" : "#f59e0b",
+                              color:           isApproved ? "#22c55e"   : isRejected ? "#ef4444"   : "#f59e0b",
                             }}>
                             {isApproved ? "Approved" : isRejected ? "Rejected" : "Pending"}
                           </span>
@@ -299,19 +264,17 @@ export default function AdminAlumniPage() {
                       </div>
                     </div>
 
-                    {/* Ratings */}
+                    {/* Rating bars */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
                           <span className="flex items-center gap-1.5" style={{ color: "var(--color-muted-foreground)" }}>
                             <Award className="h-3.5 w-3.5" />
                             AI Rating
-                            <button
-                              onClick={() => setReasoningWorker(w)}
+                            <button onClick={() => setReasoningWorker(w)}
                               className="flex items-center gap-0.5 rounded px-1.5 py-0.5 border transition hover:opacity-80"
                               style={{ borderColor: "var(--color-border)", color: "var(--color-primary)", fontSize: "10px" }}>
-                              <MessageSquare className="h-2.5 w-2.5" />
-                              Reason
+                              <MessageSquare className="h-2.5 w-2.5" /> Reason
                             </button>
                           </span>
                           <span style={{ color: aiBar.color }}>{w.ratingScore.toFixed(1)} / 10</span>
@@ -323,21 +286,16 @@ export default function AdminAlumniPage() {
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
                           <span className="flex items-center gap-1" style={{ color: "var(--color-muted-foreground)" }}>
-                            <Video className="h-3.5 w-3.5" />
-                            Interview Score
+                            <Video className="h-3.5 w-3.5" /> Interview Score
                           </span>
                           <span style={{ color: intBar ? intBar.color : "var(--color-muted-foreground)" }}>
                             {w.interviewStatus === "submitted" && w.interviewScore !== undefined
                               ? `${w.interviewScore} / 100`
-                              : w.interviewStatus === "pending" ? "In Review"
-                              : "Not Started"}
+                              : w.interviewStatus === "pending" ? "In Review" : "Not Started"}
                           </span>
                         </div>
                         <div className="h-2 rounded-full" style={{ backgroundColor: "var(--color-border)" }}>
-                          {intBar && (
-                            <div className="h-2 rounded-full"
-                              style={{ width: `${intBar.pct}%`, backgroundColor: intBar.color }} />
-                          )}
+                          {intBar && <div className="h-2 rounded-full" style={{ width: `${intBar.pct}%`, backgroundColor: intBar.color }} />}
                         </div>
                       </div>
                     </div>
@@ -345,15 +303,13 @@ export default function AdminAlumniPage() {
                     {/* Actions */}
                     {!isApproved && !isRejected && (
                       <div className="flex gap-3 pt-1">
-                        <button onClick={() => approve(w.workerId, w.workerName)}
-                          disabled={actioning === w.workerId}
+                        <button onClick={() => setApproval(w, "APPROVED")} disabled={actioning === w.workerId}
                           className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition"
                           style={{ backgroundColor: "#22c55e" }}>
                           {actioning === w.workerId ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                           Approve
                         </button>
-                        <button onClick={() => reject(w.workerId, w.workerName)}
-                          disabled={actioning === w.workerId}
+                        <button onClick={() => setApproval(w, "REJECTED")} disabled={actioning === w.workerId}
                           className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition"
                           style={{ backgroundColor: "#ef4444" }}>
                           {actioning === w.workerId ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
@@ -365,11 +321,9 @@ export default function AdminAlumniPage() {
                     {isApproved && (
                       <div className="flex items-center justify-between">
                         <p className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "#22c55e" }}>
-                          <CheckCircle className="h-4 w-4" />
-                          Profile Approved — eligible for project matching
+                          <CheckCircle className="h-4 w-4" /> Profile Approved — eligible for project matching
                         </p>
-                        <button onClick={() => reject(w.workerId, w.workerName)}
-                          disabled={actioning === w.workerId}
+                        <button onClick={() => setApproval(w, "REJECTED")} disabled={actioning === w.workerId}
                           className="text-xs border rounded-lg px-3 py-1.5 transition"
                           style={{ borderColor: "#ef4444", color: "#ef4444" }}>
                           Revoke & Reject
@@ -380,11 +334,9 @@ export default function AdminAlumniPage() {
                     {isRejected && (
                       <div className="flex items-center justify-between">
                         <p className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "#ef4444" }}>
-                          <XCircle className="h-4 w-4" />
-                          Profile Rejected — hidden from all project matching
+                          <XCircle className="h-4 w-4" /> Profile Rejected — hidden from all project matching
                         </p>
-                        <button onClick={() => approve(w.workerId, w.workerName)}
-                          disabled={actioning === w.workerId}
+                        <button onClick={() => setApproval(w, "APPROVED")} disabled={actioning === w.workerId}
                           className="text-xs border rounded-lg px-3 py-1.5 transition"
                           style={{ borderColor: "#22c55e", color: "#22c55e" }}>
                           Re-approve
@@ -399,10 +351,10 @@ export default function AdminAlumniPage() {
         </div>
       )}
 
+      {/* Reasoning modal */}
       <AnimatePresence>
         {reasoningWorker && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
             onClick={() => setReasoningWorker(null)}>
@@ -434,7 +386,7 @@ export default function AdminAlumniPage() {
                     </p>
                   ) : (
                     <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                      No analysis available yet. The AI will generate an assessment once this worker&apos;s rating is processed.
+                      No analysis available yet.
                     </p>
                   )}
                 </div>

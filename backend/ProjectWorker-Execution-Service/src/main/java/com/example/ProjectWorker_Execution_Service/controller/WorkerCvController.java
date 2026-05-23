@@ -54,6 +54,22 @@ public class WorkerCvController {
         return ResponseEntity.ok(workerCvService.getAllCvs());
     }
 
+    @PatchMapping("/api/worker-cv/{workerId}/approval")
+    public ResponseEntity<Void> updateApproval(
+            @PathVariable String workerId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can approve or reject workers.");
+        }
+        String status = body.get("approvalStatus");
+        if (!List.of("APPROVED", "REJECTED", "PENDING").contains(status)) {
+            throw new IllegalArgumentException("Invalid approval status.");
+        }
+        workerCvService.updateApprovalStatus(workerId, status);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/api/internal/worker-cv/all")
     public ResponseEntity<List<WorkerCvResponse>> getAllCvsInternal(
             @RequestHeader("X-Internal-Key") String key) {

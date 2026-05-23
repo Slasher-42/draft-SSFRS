@@ -20,6 +20,8 @@ public interface WorkerCvService {
 
     void updateRatingScore(String workerId, double score, String reasoning);
 
+    void updateApprovalStatus(String workerId, String status);
+
     void incrementCompletedProjects(String workerId);
 
     void incrementPastFailures(String workerId);

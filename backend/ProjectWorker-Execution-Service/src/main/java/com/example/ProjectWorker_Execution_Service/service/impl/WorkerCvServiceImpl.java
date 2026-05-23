@@ -109,6 +109,15 @@ public class WorkerCvServiceImpl implements WorkerCvService {
 
     @Override
     @Transactional
+    public void updateApprovalStatus(String workerId, String status) {
+        workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
+            cv.setApprovalStatus(status);
+            workerCvRepository.save(cv);
+        });
+    }
+
+    @Override
+    @Transactional
     public void incrementCompletedProjects(String workerId) {
         workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
             cv.setCompletedProjects(cv.getCompletedProjects() + 1);
@@ -137,6 +146,7 @@ public class WorkerCvServiceImpl implements WorkerCvService {
                 .additionalCredentials(cv.getAdditionalCredentials())
                 .ratingScore(cv.getRatingScore())
                 .ratingReasoning(cv.getRatingReasoning())
+                .approvalStatus(cv.getApprovalStatus())
                 .createdAt(cv.getCreatedAt())
                 .updatedAt(cv.getUpdatedAt())
                 .build();
