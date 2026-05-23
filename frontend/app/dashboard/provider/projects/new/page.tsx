@@ -6,10 +6,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ImagePlus, X, Edit3 } from "lucide-react";
+import { ArrowLeft, ImagePlus, X, Edit3, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-toastify";
-import { projectService } from "@/lib/projectService";
+import { projectService, PROJECT_CATEGORIES, type ProjectCategoryValue } from "@/lib/projectService";
 
 const schema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -34,6 +34,8 @@ const inputBase =
 export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState<ProjectCategoryValue | "">("");
+  const [categoryError, setCategoryError] = useState("");
   const [imageEntries, setImageEntries] = useState<ImageEntry[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,10 +78,16 @@ export default function NewProjectPage() {
   };
 
   const onSubmit = async (data: FormData) => {
+    if (!category) {
+      setCategoryError("Please select a field of expertise.");
+      return;
+    }
+    setCategoryError("");
     setLoading(true);
     try {
       await projectService.createProject({
         ...data,
+        category: category as ProjectCategoryValue,
         images: imageEntries.map((e) => ({
           file: e.file,
           description: e.description.trim() || `Supporting image`,
@@ -148,6 +156,39 @@ export default function NewProjectPage() {
               style={border(!!errors.requiredSkills)}
             />
           </Field>
+
+          {/* ─── Field of Expertise (Category) ─── */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
+              Field of Expertise <span style={{ color: "#ef4444" }}>*</span>
+            </label>
+            <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              Only workers whose expertise matches this field will be shown as candidates.
+            </p>
+            <div className="relative">
+              <select
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value as ProjectCategoryValue | "");
+                  if (e.target.value) setCategoryError("");
+                }}
+                className={inputBase + " appearance-none pr-8"}
+                style={border(!!categoryError)}
+              >
+                <option value="">— Select the project field —</option>
+                {PROJECT_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <ChevronDown
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+                style={{ color: "var(--color-muted-foreground)" }}
+              />
+            </div>
+            {categoryError && (
+              <p className="text-xs" style={{ color: "#ef4444" }}>{categoryError}</p>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Deadline" error={errors.deadline?.message}>

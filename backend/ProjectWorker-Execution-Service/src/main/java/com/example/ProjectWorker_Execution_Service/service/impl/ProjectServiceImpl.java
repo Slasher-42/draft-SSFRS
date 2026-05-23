@@ -7,6 +7,7 @@ import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.exception.ResourceNotFoundException;
 import com.example.ProjectWorker_Execution_Service.kafka.ExecutionEventPublisher;
 import com.example.ProjectWorker_Execution_Service.model.Project;
+import com.example.ProjectWorker_Execution_Service.model.ProjectCategory;
 import com.example.ProjectWorker_Execution_Service.model.ProjectImage;
 import com.example.ProjectWorker_Execution_Service.model.ProjectStatus;
 import com.example.ProjectWorker_Execution_Service.model.WorkerCv;
@@ -50,7 +51,53 @@ public class ProjectServiceImpl implements ProjectService {
     private String aiServiceBaseUrl;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
+
+    // Maps each project category to keywords found in worker specialization strings
+    private static final Map<ProjectCategory, List<String>> CATEGORY_WORKER_KEYWORDS =
+            Map.ofEntries(
+                Map.entry(ProjectCategory.SOFTWARE_DEVELOPMENT, List.of(
+                        "full-stack", "frontend", "backend", "mobile", "ios", "android",
+                        "devops", "cloud", "cybersecurity", "database", "quality assurance",
+                        "testing", "network", "embedded", "blockchain", "game development",
+                        "software", "developer", "web", "programming", "java", "python",
+                        "javascript", "react", "angular", "node", "spring")),
+                Map.entry(ProjectCategory.DESIGN_CREATIVE, List.of(
+                        "ui", "ux", "design", "graphic", "visual", "creative",
+                        "figma", "art", "interior", "brand", "illustrat")),
+                Map.entry(ProjectCategory.DATA_AI, List.of(
+                        "data science", "analytics", "machine learning", "artificial intelligence",
+                        "ai", "statistics", "tableau", "power bi", "data")),
+                Map.entry(ProjectCategory.MANAGEMENT, List.of(
+                        "project management", "product management", "business analysis",
+                        "scrum", "agile", "manager", "management", "analyst")),
+                Map.entry(ProjectCategory.ENGINEERING, List.of(
+                        "civil", "mechanical", "electrical", "structural",
+                        "engineering", "engineer")),
+                Map.entry(ProjectCategory.CONSTRUCTION, List.of(
+                        "construction", "building", "plumbing", "hvac",
+                        "mason", "carpenter", "contractor")),
+                Map.entry(ProjectCategory.MARKETING, List.of(
+                        "marketing", "digital marketing", "content", "copywriting",
+                        "seo", "social media", "advertising", "branding")),
+                Map.entry(ProjectCategory.FINANCE_ACCOUNTING, List.of(
+                        "finance", "accounting", "audit", "tax", "human resources",
+                        "hr", "payroll", "bookkeeping", "cpa", "budget")),
+                Map.entry(ProjectCategory.LEGAL_COMPLIANCE, List.of(
+                        "legal", "compliance", "law", "attorney", "paralegal",
+                        "counsel", "contract")),
+                Map.entry(ProjectCategory.HEALTHCARE, List.of(
+                        "healthcare", "medical", "nursing", "clinical", "pharmacy",
+                        "health", "doctor", "dental", "therapy")),
+                Map.entry(ProjectCategory.EDUCATION_TRAINING, List.of(
+                        "education", "training", "teaching", "curriculum",
+                        "coaching", "tutor", "instructor")),
+                Map.entry(ProjectCategory.LOGISTICS, List.of(
+                        "logistics", "supply chain", "warehouse", "transport",
+                        "procurement", "inventory", "shipping"))
+            );
 
     @Override
     @Transactional
@@ -60,25 +107,24 @@ public class ProjectServiceImpl implements ProjectService {
             @CacheEvict(value = "projects-open", allEntries = true)
     })
     public ProjectResponse createProject(String title, String scopeOfWork, String requiredSkills,
+                                          ProjectCategory category,
                                           LocalDate deadline, BigDecimal budget,
                                           List<MultipartFile> images, List<String> imageDescriptions,
                                           UserPrincipal principal) {
         if (!"PROVIDER".equals(principal.getRole())) {
             throw new ForbiddenException("Only project providers can post projects.");
         }
-
         Project project = Project.builder()
                 .providerId(principal.getUserId())
                 .title(title)
                 .scopeOfWork(scopeOfWork)
                 .requiredSkills(requiredSkills)
+                .category(category)
                 .deadline(deadline)
                 .budget(budget)
                 .build();
         projectRepository.save(project);
-
         saveImages(project.getId(), images, imageDescriptions);
-
         eventPublisher.publishProjectPosted(project.getId(), principal.getUserId());
         return toResponse(project);
     }
@@ -124,7 +170,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponse getProjectById(String projectId, UserPrincipal principal) {
         Project project = findProject(projectId);
         boolean isProvider = project.getProviderId().equals(principal.getUserId());
-        boolean isWorker = principal.getUserId().equals(project.getAssignedWorkerId());
+        boolean isWorker   = principal.getUserId().equals(project.getAssignedWorkerId());
         if (!isProvider && !isWorker && !"ADMIN".equals(principal.getRole())) {
             throw new ForbiddenException("Access denied.");
         }
@@ -185,6 +231,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Access denied.");
         }
+
         List<WorkerCv> allCvs = workerCvRepository.findAll().stream()
                 .filter(cv -> cv.getSpecialization() != null
                            && cv.getWorkerName() != null
@@ -192,12 +239,22 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
         if (allCvs.isEmpty()) return List.of();
 
-        List<WorkerCv> relevantCvs = allCvs.stream()
-                .filter(cv -> isWorkerRelevantToProject(
-                        cv.getSpecialization(), project.getRequiredSkills(), project.getTitle()))
-                .collect(Collectors.toList());
-        if (!relevantCvs.isEmpty()) {
-            allCvs = relevantCvs;
+        // Category hard-filter: only workers whose specialization matches the project's field
+        ProjectCategory category = project.getCategory();
+        if (category != null && category != ProjectCategory.OTHER) {
+            List<WorkerCv> categoryFiltered = allCvs.stream()
+                    .filter(cv -> workerMatchesCategory(cv.getSpecialization(), category))
+                    .collect(Collectors.toList());
+            // If no workers in this category exist, return empty — don't cross categories
+            if (categoryFiltered.isEmpty()) return List.of();
+            allCvs = categoryFiltered;
+        } else {
+            // No category (legacy project) or OTHER → use keyword relevance as before
+            List<WorkerCv> relevant = allCvs.stream()
+                    .filter(cv -> isKeywordRelevant(cv.getSpecialization(),
+                            project.getRequiredSkills(), project.getTitle()))
+                    .collect(Collectors.toList());
+            if (!relevant.isEmpty()) allCvs = relevant;
         }
 
         List<Map<String, Object>> workers = allCvs.stream().map(cv -> {
@@ -235,14 +292,15 @@ public class ProjectServiceImpl implements ProjectService {
             return ranked.stream()
                     .filter(r -> ((Number) r.get("match_score")).doubleValue() > 15)
                     .map(r -> RankedWorkerResponse.builder()
-                    .workerId((String) r.get("worker_id"))
-                    .workerName((String) r.get("worker_name"))
-                    .workerEmail((String) r.get("worker_email"))
-                    .specialization((String) r.get("specialization"))
-                    .yearsOfExperience(((Number) r.get("years_of_experience")).intValue())
-                    .ratingScore(((Number) r.get("rating_score")).doubleValue())
-                    .rankScore(((Number) r.get("match_score")).doubleValue())
-                    .build()).collect(Collectors.toList());
+                            .workerId((String) r.get("worker_id"))
+                            .workerName((String) r.get("worker_name"))
+                            .workerEmail((String) r.get("worker_email"))
+                            .specialization((String) r.get("specialization"))
+                            .yearsOfExperience(((Number) r.get("years_of_experience")).intValue())
+                            .ratingScore(((Number) r.get("rating_score")).doubleValue())
+                            .rankScore(((Number) r.get("match_score")).doubleValue())
+                            .build())
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             return allCvs.stream()
                     .sorted(Comparator.comparingDouble(WorkerCv::getRatingScore).reversed())
@@ -254,21 +312,6 @@ public class ProjectServiceImpl implements ProjectService {
                             .build())
                     .collect(Collectors.toList());
         }
-    }
-
-    private static final Set<String> FIELD_STOP_WORDS = Set.of(
-            "and", "the", "of", "in", "for", "with", "a", "an", "to", "or", "on", "at", "by", "as"
-    );
-
-    private boolean isWorkerRelevantToProject(String workerSpec, String requiredSkills, String title) {
-        if (workerSpec == null || workerSpec.isBlank()) return false;
-        String context = ((requiredSkills != null ? requiredSkills : "") + " " + (title != null ? title : "")).toLowerCase();
-        for (String word : workerSpec.toLowerCase().split("[\\s&,/\\-]+")) {
-            if (word.length() > 3 && !FIELD_STOP_WORDS.contains(word) && context.contains(word)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override
@@ -294,6 +337,31 @@ public class ProjectServiceImpl implements ProjectService {
         return toResponse(project);
     }
 
+    /** Returns true if the worker's specialization contains any category keyword. */
+    private boolean workerMatchesCategory(String workerSpec, ProjectCategory category) {
+        if (workerSpec == null || category == null) return false;
+        List<String> keywords = CATEGORY_WORKER_KEYWORDS.getOrDefault(category, List.of());
+        String spec = workerSpec.toLowerCase();
+        return keywords.stream().anyMatch(spec::contains);
+    }
+
+    private static final Set<String> FIELD_STOP_WORDS = Set.of(
+            "and", "the", "of", "in", "for", "with", "a", "an", "to", "or", "on", "at", "by", "as"
+    );
+
+    /** Original keyword relevance check — used when no category or category is OTHER. */
+    private boolean isKeywordRelevant(String workerSpec, String requiredSkills, String title) {
+        if (workerSpec == null || workerSpec.isBlank()) return false;
+        String context = ((requiredSkills != null ? requiredSkills : "")
+                + " " + (title != null ? title : "")).toLowerCase();
+        for (String word : workerSpec.toLowerCase().split("[\\s&,/\\-]+")) {
+            if (word.length() > 3 && !FIELD_STOP_WORDS.contains(word) && context.contains(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void saveImages(String projectId, List<MultipartFile> images, List<String> descriptions) {
         if (images == null || images.isEmpty()) return;
         List<ProjectImage> toSave = new ArrayList<>();
@@ -302,16 +370,12 @@ public class ProjectServiceImpl implements ProjectService {
             if (file == null || file.isEmpty()) continue;
             String description = (descriptions != null && i < descriptions.size()
                     && descriptions.get(i) != null && !descriptions.get(i).isBlank())
-                    ? descriptions.get(i)
-                    : "Supporting image " + (i + 1);
+                    ? descriptions.get(i) : "Supporting image " + (i + 1);
             try {
                 String key = s3UploadService.uploadFile(file, "project-images");
                 toSave.add(ProjectImage.builder()
-                        .projectId(projectId)
-                        .imageKey(key)
-                        .description(description)
-                        .displayOrder(i)
-                        .build());
+                        .projectId(projectId).imageKey(key)
+                        .description(description).displayOrder(i).build());
             } catch (IOException e) {
                 throw new RuntimeException("Failed to upload image: " + file.getOriginalFilename());
             }
@@ -344,12 +408,17 @@ public class ProjectServiceImpl implements ProjectService {
                         .build())
                 .collect(Collectors.toList());
 
+        String categoryName     = p.getCategory() != null ? p.getCategory().name() : null;
+        String categoryDisplay  = p.getCategory() != null ? p.getCategory().getDisplayName() : null;
+
         return ProjectResponse.builder()
                 .id(p.getId())
                 .providerId(p.getProviderId())
                 .title(p.getTitle())
                 .scopeOfWork(p.getScopeOfWork())
                 .requiredSkills(p.getRequiredSkills())
+                .category(categoryName)
+                .categoryDisplayName(categoryDisplay)
                 .deadline(p.getDeadline())
                 .budget(p.getBudget())
                 .status(p.getStatus().name())

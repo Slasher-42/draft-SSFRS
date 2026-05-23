@@ -2,6 +2,7 @@ package com.example.ProjectWorker_Execution_Service.controller;
 
 import com.example.ProjectWorker_Execution_Service.dto.ProjectResponse;
 import com.example.ProjectWorker_Execution_Service.dto.RankedWorkerResponse;
+import com.example.ProjectWorker_Execution_Service.model.ProjectCategory;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.ProjectService;
 import lombok.RequiredArgsConstructor;
@@ -28,14 +29,16 @@ public class ProjectController {
             @RequestParam("title") String title,
             @RequestParam("scopeOfWork") String scopeOfWork,
             @RequestParam("requiredSkills") String requiredSkills,
+            @RequestParam("category") String category,
             @RequestParam("deadline") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline,
             @RequestParam("budget") BigDecimal budget,
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
             @RequestParam(value = "imageDescriptions", required = false) List<String> imageDescriptions,
             @AuthenticationPrincipal UserPrincipal principal) {
+        ProjectCategory projectCategory = ProjectCategory.valueOf(category);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 projectService.createProject(title, scopeOfWork, requiredSkills,
-                        deadline, budget, images, imageDescriptions, principal));
+                        projectCategory, deadline, budget, images, imageDescriptions, principal));
     }
 
     @GetMapping("/my")

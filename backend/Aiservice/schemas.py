@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -31,20 +32,24 @@ class WorkerRatingResponse(BaseModel):
 
 
 class WorkerInputForRanking(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     worker_id: str
-    worker_name: str
-    worker_email: str
-    specialization: str
-    years_of_experience: int
+    worker_name: Optional[str] = "Unknown"
+    worker_email: Optional[str] = ""
+    specialization: Optional[str] = ""
+    years_of_experience: Optional[int] = 0
     additional_credentials: Optional[str] = None
-    rating_score: float = 0.0
+    rating_score: Optional[float] = 0.0
 
 
 class RankCandidatesRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     project_id: str
-    title: str
-    scope_of_work: str
-    required_skills: str
+    title: Optional[str] = ""
+    scope_of_work: Optional[str] = ""
+    required_skills: Optional[str] = ""
     workers: List[WorkerInputForRanking]
 
 

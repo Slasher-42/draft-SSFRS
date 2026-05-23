@@ -1,11 +1,16 @@
+import logging
 import threading
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from database import create_tables, SessionLocal
 from messaging.consumer import start_consumer, retrigger_unrated_workers
 from routers import rating, matching, claim, geolocation
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -23,6 +28,18 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logger.error(
+        "[422] Validation error on %s\nErrors: %s\nBody (first 500 chars): %s",
+        request.url.path,
+        exc.errors(),
+        body[:500].decode("utf-8", errors="replace"),
+    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 app.add_middleware(
     CORSMiddleware,

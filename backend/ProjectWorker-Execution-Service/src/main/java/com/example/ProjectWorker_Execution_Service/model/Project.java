@@ -44,6 +44,9 @@ public class Project {
     @Builder.Default
     private ProjectStatus status = ProjectStatus.OPEN;
 
+    @Enumerated(EnumType.STRING)
+    private ProjectCategory category;
+
     private String assignedWorkerId;
 
     @Column(updatable = false)

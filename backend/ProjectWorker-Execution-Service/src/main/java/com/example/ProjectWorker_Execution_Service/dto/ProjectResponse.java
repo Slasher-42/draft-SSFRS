@@ -1,5 +1,6 @@
 package com.example.ProjectWorker_Execution_Service.dto;
 
+import com.example.ProjectWorker_Execution_Service.model.ProjectCategory;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
@@ -18,6 +19,8 @@ public class ProjectResponse {
     private String title;
     private String scopeOfWork;
     private String requiredSkills;
+    private String category;
+    private String categoryDisplayName;
     private LocalDate deadline;
     private BigDecimal budget;
     private String status;

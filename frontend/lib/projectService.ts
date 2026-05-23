@@ -7,10 +7,29 @@ export interface ProjectImageResponse {
   displayOrder: number;
 }
 
+export const PROJECT_CATEGORIES = [
+  { value: "SOFTWARE_DEVELOPMENT", label: "Software Development" },
+  { value: "DESIGN_CREATIVE",      label: "Design & Creative" },
+  { value: "DATA_AI",              label: "Data & AI" },
+  { value: "MANAGEMENT",           label: "Project & Product Management" },
+  { value: "ENGINEERING",          label: "Engineering" },
+  { value: "CONSTRUCTION",         label: "Construction" },
+  { value: "MARKETING",            label: "Marketing & Content" },
+  { value: "FINANCE_ACCOUNTING",   label: "Finance & Accounting" },
+  { value: "LEGAL_COMPLIANCE",     label: "Legal & Compliance" },
+  { value: "HEALTHCARE",           label: "Healthcare" },
+  { value: "EDUCATION_TRAINING",   label: "Education & Training" },
+  { value: "LOGISTICS",            label: "Logistics & Supply Chain" },
+  { value: "OTHER",                label: "Other" },
+] as const;
+
+export type ProjectCategoryValue = typeof PROJECT_CATEGORIES[number]["value"];
+
 export interface CreateProjectRequest {
   title: string;
   scopeOfWork: string;
   requiredSkills: string;
+  category: ProjectCategoryValue;
   deadline: string;
   budget: number;
   images?: { file: File; description: string }[];
@@ -22,6 +41,8 @@ export interface ProjectResponse {
   title: string;
   scopeOfWork: string;
   requiredSkills: string;
+  category: ProjectCategoryValue | null;
+  categoryDisplayName: string | null;
   deadline: string;
   budget: number;
   status: "OPEN" | "ASSIGNED" | "COMPLETED" | "FAILED";
@@ -47,6 +68,7 @@ export const projectService = {
     form.append("title", data.title);
     form.append("scopeOfWork", data.scopeOfWork);
     form.append("requiredSkills", data.requiredSkills);
+    form.append("category", data.category);
     form.append("deadline", data.deadline);
     form.append("budget", String(data.budget));
 
