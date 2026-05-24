@@ -10,7 +10,7 @@ import {
 import { toast } from "react-toastify";
 import { workerCvService } from "@/lib/workerCvService";
 import { authService } from "@/lib/authService";
-import { interviewService } from "@/lib/interviewService";
+import { interviewService, type InterviewResponse } from "@/lib/interviewService";
 
 type Stage = "gate" | "setup" | "ready" | "question" | "reviewing" | "done";
 
@@ -65,19 +65,29 @@ export default function WorkerInterviewPage() {
   const [transcript, setTranscript] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [refining, setRefining] = useState(false);
+  const [existingInterview, setExistingInterview] = useState<InterviewResponse | null>(null);
 
-  /* Check if worker meets criteria */
+  /* Check CV eligibility and whether interview was already submitted */
   useEffect(() => {
     const s = authService.getSession();
     if (!s) { setCheckingCv(false); return; }
 
-    workerCvService.getMyCv()
-      .then((cv) => {
+    (async () => {
+      try {
+        const cv = await workerCvService.getMyCv();
         setCvSubmitted(!!cv.specialization);
         setProfilePct(cv.ratingScore > 0 ? 85 : 75);
-      })
-      .catch(() => setCvSubmitted(false))
-      .finally(() => setCheckingCv(false));
+        const interview = await interviewService.getMyInterview().catch(() => null);
+        if (interview) {
+          setExistingInterview(interview);
+          setStage("done");
+        }
+      } catch {
+        setCvSubmitted(false);
+      } finally {
+        setCheckingCv(false);
+      }
+    })();
   }, []);
 
   /* Start camera */
@@ -219,7 +229,8 @@ export default function WorkerInterviewPage() {
   const submitInterview = async () => {
     setSubmitting(true);
     try {
-      await interviewService.submitInterview(answers);
+      const result = await interviewService.submitInterview(answers);
+      setExistingInterview(result);
       toast.success("Interview submitted successfully! The admin will review your results.");
       setStage("done");
     } catch {
@@ -575,15 +586,46 @@ export default function WorkerInterviewPage() {
         {/* ─── Stage: done ─── */}
         {stage === "done" && (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="text-center space-y-4 py-12">
+            className="text-center space-y-4 py-8">
             <div className="h-16 w-16 rounded-full flex items-center justify-center mx-auto"
               style={{ backgroundColor: "#22c55e20" }}>
               <CheckCircle className="h-8 w-8" style={{ color: "#22c55e" }} />
             </div>
             <h4 className="font-bold" style={{ color: "var(--color-foreground)" }}>Interview Submitted!</h4>
             <p className="text-sm max-w-sm mx-auto" style={{ color: "var(--color-muted-foreground)" }}>
-              Your answers have been sent to the admin. You will be notified once your interview is reviewed and scored.
+              Your answers have been sent to the admin for evaluation.
             </p>
+
+            {existingInterview && (
+              <div className="max-w-sm mx-auto rounded-xl border p-4 text-left space-y-3"
+                style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
+                <div className="flex items-center justify-between text-sm">
+                  <span style={{ color: "var(--color-muted-foreground)" }}>Status</span>
+                  <span className="font-medium px-2 py-0.5 rounded-full text-xs"
+                    style={{
+                      backgroundColor: existingInterview.status === "SCORED" ? "#22c55e20" : "#f59e0b20",
+                      color: existingInterview.status === "SCORED" ? "#22c55e" : "#f59e0b",
+                    }}>
+                    {existingInterview.status === "SCORED" ? "Scored" : existingInterview.status === "UNDER_REVIEW" ? "Under Review" : "In Review"}
+                  </span>
+                </div>
+                {existingInterview.status === "SCORED" && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span style={{ color: "var(--color-muted-foreground)" }}>Your Score</span>
+                    <span className="font-bold text-base" style={{ color: "#22c55e" }}>
+                      {existingInterview.interviewScore} / 100
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span style={{ color: "var(--color-muted-foreground)" }}>Submitted</span>
+                  <span style={{ color: "var(--color-foreground)" }}>
+                    {new Date(existingInterview.submittedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <a href="/dashboard/worker"
               className="inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium text-white"
               style={{ backgroundColor: "var(--color-primary)" }}>

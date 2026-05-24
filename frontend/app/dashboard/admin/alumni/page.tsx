@@ -38,6 +38,8 @@ export default function AdminAlumniPage() {
   const [actioning, setActioning] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "approved" | "rejected" | "pending">("all");
   const [reasoningWorker, setReasoningWorker] = useState<AlumniWorker | null>(null);
+  const [scoringId, setScoringId] = useState<string | null>(null);
+  const [scoreInputs, setScoreInputs] = useState<Record<string, string>>({});
 
   const loadWorkers = (isInitial = false) => {
     if (!isInitial) setRefreshing(true);
@@ -82,6 +84,32 @@ export default function AdminAlumniPage() {
     const interval = setInterval(() => loadWorkers(false), 15000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleScore = async (worker: AlumniWorker) => {
+    if (!worker.interviewId) return;
+    const raw = scoreInputs[worker.interviewId] ?? "";
+    const score = Number(raw);
+    if (isNaN(score) || score < 0 || score > 100) {
+      toast.error("Score must be a number between 0 and 100.");
+      return;
+    }
+    setScoringId(worker.interviewId);
+    try {
+      await interviewService.scoreInterview(worker.interviewId, score);
+      setWorkers((prev) =>
+        prev.map((w) =>
+          w.workerId === worker.workerId
+            ? { ...w, interviewScore: score, interviewStatus: "submitted" }
+            : w
+        )
+      );
+      toast.success(`Interview scored: ${score} / 100`);
+    } catch {
+      toast.error("Failed to submit score.");
+    } finally {
+      setScoringId(null);
+    }
+  };
 
   const setApproval = async (worker: AlumniWorker, status: "APPROVED" | "REJECTED" | "PENDING") => {
     setActioning(worker.workerId);
@@ -297,6 +325,25 @@ export default function AdminAlumniPage() {
                         <div className="h-2 rounded-full" style={{ backgroundColor: "var(--color-border)" }}>
                           {intBar && <div className="h-2 rounded-full" style={{ width: `${intBar.pct}%`, backgroundColor: intBar.color }} />}
                         </div>
+                        {w.interviewStatus === "pending" && w.interviewId && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="number" min={0} max={100}
+                              placeholder="Score (0–100)"
+                              value={scoreInputs[w.interviewId] ?? ""}
+                              onChange={(e) => setScoreInputs((prev) => ({ ...prev, [w.interviewId!]: e.target.value }))}
+                              className="flex-1 rounded-lg border px-2 py-1 text-xs focus:outline-none"
+                              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}
+                            />
+                            <button
+                              onClick={() => handleScore(w)}
+                              disabled={scoringId === w.interviewId}
+                              className="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-white transition disabled:opacity-50"
+                              style={{ backgroundColor: "var(--color-primary)" }}>
+                              {scoringId === w.interviewId ? <Loader2 className="h-3 w-3 animate-spin" /> : "Submit Score"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 

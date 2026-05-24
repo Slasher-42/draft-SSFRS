@@ -55,9 +55,9 @@ public class WorkerCv {
     @Builder.Default
     private int pastFailures = 0;
 
-    @Column(nullable = false, columnDefinition = "varchar(20) default 'PENDING'")
+    @Column(nullable = false, length = 20)
     @Builder.Default
-    private String approvalStatus = "PENDING";   // PENDING | APPROVED | REJECTED
+    private String approvalStatus = "PENDING";  
 
     @Column(updatable = false)
     private LocalDateTime createdAt;
