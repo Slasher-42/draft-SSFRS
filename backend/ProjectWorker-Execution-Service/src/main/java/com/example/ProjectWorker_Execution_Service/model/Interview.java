@@ -35,6 +35,9 @@ public class Interview {
     @Builder.Default
     private double interviewScore = 0.0;
 
+    @Column(columnDefinition = "TEXT")
+    private String scoringReason;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

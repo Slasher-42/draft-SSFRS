@@ -55,4 +55,14 @@ public class InterviewController {
         double score = body.getOrDefault("score", 0.0);
         return ResponseEntity.ok(interviewService.scoreInterview(id, score));
     }
+
+    @PostMapping("/{id}/ai-score")
+    public ResponseEntity<InterviewResponse> aiScoreInterview(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can trigger AI scoring.");
+        }
+        return ResponseEntity.ok(interviewService.aiScoreInterview(id));
+    }
 }

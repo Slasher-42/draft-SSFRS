@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award, Star, CheckCircle, XCircle, Search,
-  Briefcase, Mail, Loader2, Video, User, MessageSquare, X, RefreshCw,
+  Briefcase, Mail, Loader2, Video, User, MessageSquare, X, RefreshCw, Sparkles,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
@@ -25,6 +25,7 @@ function toAdminReasoning(reasoning: string, workerName: string): string {
 
 interface AlumniWorker extends WorkerCvResponse {
   interviewScore?: number;
+  scoringReason?: string | null;
   interviewStatus?: "pending" | "submitted" | "not_started";
   interviewId?: string;
   profileImageUrl?: string | null;
@@ -38,8 +39,8 @@ export default function AdminAlumniPage() {
   const [actioning, setActioning] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "approved" | "rejected" | "pending">("all");
   const [reasoningWorker, setReasoningWorker] = useState<AlumniWorker | null>(null);
-  const [scoringId, setScoringId] = useState<string | null>(null);
-  const [scoreInputs, setScoreInputs] = useState<Record<string, string>>({});
+  const [interviewReasoningWorker, setInterviewReasoningWorker] = useState<AlumniWorker | null>(null);
+  const [aiScoringId, setAiScoringId] = useState<string | null>(null);
 
   const loadWorkers = (isInitial = false) => {
     if (!isInitial) setRefreshing(true);
@@ -55,6 +56,7 @@ export default function AdminAlumniPage() {
         return {
           ...cv,
           interviewScore: interview?.interviewScore,
+          scoringReason: interview?.scoringReason ?? null,
           interviewStatus: (interview ? (interview.status === "SCORED" ? "submitted" : "pending") : "not_started") as "pending" | "submitted" | "not_started",
           interviewId: interview?.id,
           profileImageUrl: null as string | null,
@@ -85,29 +87,23 @@ export default function AdminAlumniPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleScore = async (worker: AlumniWorker) => {
+  const handleAiScore = async (worker: AlumniWorker) => {
     if (!worker.interviewId) return;
-    const raw = scoreInputs[worker.interviewId] ?? "";
-    const score = Number(raw);
-    if (isNaN(score) || score < 0 || score > 100) {
-      toast.error("Score must be a number between 0 and 100.");
-      return;
-    }
-    setScoringId(worker.interviewId);
+    setAiScoringId(worker.interviewId);
     try {
-      await interviewService.scoreInterview(worker.interviewId, score);
+      const result = await interviewService.aiScoreInterview(worker.interviewId);
       setWorkers((prev) =>
         prev.map((w) =>
           w.workerId === worker.workerId
-            ? { ...w, interviewScore: score, interviewStatus: "submitted" }
+            ? { ...w, interviewScore: result.interviewScore, scoringReason: result.scoringReason, interviewStatus: "submitted" }
             : w
         )
       );
-      toast.success(`Interview scored: ${score} / 100`);
+      toast.success(`AI scored this interview: ${result.interviewScore} / 100`);
     } catch {
-      toast.error("Failed to submit score.");
+      toast.error("AI scoring failed. Please try again.");
     } finally {
-      setScoringId(null);
+      setAiScoringId(null);
     }
   };
 
@@ -315,6 +311,13 @@ export default function AdminAlumniPage() {
                         <div className="flex justify-between text-xs">
                           <span className="flex items-center gap-1" style={{ color: "var(--color-muted-foreground)" }}>
                             <Video className="h-3.5 w-3.5" /> Interview Score
+                            {w.interviewStatus === "submitted" && w.scoringReason && (
+                              <button onClick={() => setInterviewReasoningWorker(w)}
+                                className="flex items-center gap-0.5 rounded px-1.5 py-0.5 border transition hover:opacity-80"
+                                style={{ borderColor: "var(--color-border)", color: "var(--color-primary)", fontSize: "10px" }}>
+                                <MessageSquare className="h-2.5 w-2.5" /> Reason
+                              </button>
+                            )}
                           </span>
                           <span style={{ color: intBar ? intBar.color : "var(--color-muted-foreground)" }}>
                             {w.interviewStatus === "submitted" && w.interviewScore !== undefined
@@ -326,21 +329,15 @@ export default function AdminAlumniPage() {
                           {intBar && <div className="h-2 rounded-full" style={{ width: `${intBar.pct}%`, backgroundColor: intBar.color }} />}
                         </div>
                         {w.interviewStatus === "pending" && w.interviewId && (
-                          <div className="flex items-center gap-2 pt-1">
-                            <input
-                              type="number" min={0} max={100}
-                              placeholder="Score (0–100)"
-                              value={scoreInputs[w.interviewId] ?? ""}
-                              onChange={(e) => setScoreInputs((prev) => ({ ...prev, [w.interviewId!]: e.target.value }))}
-                              className="flex-1 rounded-lg border px-2 py-1 text-xs focus:outline-none"
-                              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}
-                            />
+                          <div className="pt-1">
                             <button
-                              onClick={() => handleScore(w)}
-                              disabled={scoringId === w.interviewId}
-                              className="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-white transition disabled:opacity-50"
-                              style={{ backgroundColor: "var(--color-primary)" }}>
-                              {scoringId === w.interviewId ? <Loader2 className="h-3 w-3 animate-spin" /> : "Submit Score"}
+                              onClick={() => handleAiScore(w)}
+                              disabled={aiScoringId === w.interviewId}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition disabled:opacity-50"
+                              style={{ backgroundColor: "#7c3aed" }}>
+                              {aiScoringId === w.interviewId
+                                ? <><Loader2 className="h-3 w-3 animate-spin" /> Scoring with AI…</>
+                                : <><Sparkles className="h-3 w-3" /> Score with AI</>}
                             </button>
                           </div>
                         )}
@@ -397,6 +394,52 @@ export default function AdminAlumniPage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Interview AI reasoning modal */}
+      <AnimatePresence>
+        {interviewReasoningWorker && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onClick={() => setInterviewReasoningWorker(null)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative w-full max-w-lg rounded-2xl border shadow-xl"
+              style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: "var(--color-border)" }}>
+                <div>
+                  <p className="font-semibold" style={{ color: "var(--color-foreground)" }}>AI Interview Evaluation</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+                    {interviewReasoningWorker.workerName} · {interviewReasoningWorker.specialization} · {interviewReasoningWorker.interviewScore} / 100
+                  </p>
+                </div>
+                <button onClick={() => setInterviewReasoningWorker(null)}
+                  className="rounded-lg p-1.5 transition hover:opacity-70"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-5">
+                <div className="rounded-xl p-4 border"
+                  style={{ backgroundColor: "var(--color-background)", borderColor: "var(--color-border)" }}>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--color-foreground)" }}>
+                    {interviewReasoningWorker.scoringReason || "No AI reasoning available."}
+                  </p>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={() => setInterviewReasoningWorker(null)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition"
+                    style={{ backgroundColor: "#7c3aed" }}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reasoning modal */}
       <AnimatePresence>

@@ -14,6 +14,7 @@ export interface InterviewResponse {
   workerEmail: string;
   answersJson: string;
   interviewScore: number;
+  scoringReason: string | null;
   status: "SUBMITTED" | "UNDER_REVIEW" | "SCORED";
   submittedAt: string;
   reviewedAt: string | null;
@@ -39,6 +40,11 @@ export const interviewService = {
 
   async scoreInterview(id: string, score: number): Promise<InterviewResponse> {
     const res = await executionApi.patch<InterviewResponse>(`/api/interviews/${id}/score`, { score });
+    return res.data;
+  },
+
+  async aiScoreInterview(id: string): Promise<InterviewResponse> {
+    const res = await executionApi.post<InterviewResponse>(`/api/interviews/${id}/ai-score`);
     return res.data;
   },
 };

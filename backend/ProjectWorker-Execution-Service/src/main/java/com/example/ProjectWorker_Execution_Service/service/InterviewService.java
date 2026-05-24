@@ -15,4 +15,6 @@ public interface InterviewService {
     List<InterviewResponse> getAllInterviews();
 
     InterviewResponse scoreInterview(String interviewId, double score);
+
+    InterviewResponse aiScoreInterview(String interviewId);
 }

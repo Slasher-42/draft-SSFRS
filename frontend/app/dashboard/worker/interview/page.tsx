@@ -610,12 +610,20 @@ export default function WorkerInterviewPage() {
                   </span>
                 </div>
                 {existingInterview.status === "SCORED" && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span style={{ color: "var(--color-muted-foreground)" }}>Your Score</span>
-                    <span className="font-bold text-base" style={{ color: "#22c55e" }}>
-                      {existingInterview.interviewScore} / 100
-                    </span>
-                  </div>
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span style={{ color: "var(--color-muted-foreground)" }}>Your Score</span>
+                      <span className="font-bold text-base" style={{ color: "#22c55e" }}>
+                        {existingInterview.interviewScore} / 100
+                      </span>
+                    </div>
+                    {existingInterview.scoringReason && (
+                      <div className="rounded-lg p-3 text-left text-xs leading-relaxed"
+                        style={{ backgroundColor: "var(--color-neutral-50)", color: "var(--color-muted-foreground)" }}>
+                        {existingInterview.scoringReason}
+                      </div>
+                    )}
+                  </>
                 )}
                 <div className="flex items-center justify-between text-sm">
                   <span style={{ color: "var(--color-muted-foreground)" }}>Submitted</span>

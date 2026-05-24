@@ -14,6 +14,7 @@ public class InterviewResponse {
     private String workerEmail;
     private String answersJson;
     private double interviewScore;
+    private String scoringReason;
     private String status;
     private LocalDateTime submittedAt;
     private LocalDateTime reviewedAt;
