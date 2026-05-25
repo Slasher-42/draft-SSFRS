@@ -39,6 +39,14 @@ export default function WorkerInterviewPage() {
   /* camera & mic */
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  /* Callback ref: fires the moment any video element mounts, attaches the stream immediately */
+  const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      node.srcObject = streamRef.current;
+    }
+  }, []);
   const [cameraOk, setCameraOk] = useState(false);
   const [cameraErr, setCameraErr] = useState("");
   const [muted, setMuted] = useState(false);
@@ -314,7 +322,7 @@ export default function WorkerInterviewPage() {
               {/* Video preview */}
               <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <video ref={videoRef} autoPlay muted playsInline
+                <video ref={videoCallbackRef} autoPlay muted playsInline
                   className="w-full h-full object-cover" style={{ display: cameraOk ? "block" : "none" }} />
                 {!cameraOk && (
                   <div className="text-center space-y-3 p-8">
@@ -491,7 +499,7 @@ export default function WorkerInterviewPage() {
             {/* Video + answer input */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl overflow-hidden bg-black aspect-video">
-                <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                <video ref={videoCallbackRef} autoPlay muted playsInline className="w-full h-full object-cover" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: "var(--color-muted-foreground)" }}>
