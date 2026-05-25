@@ -5,6 +5,7 @@ from kafka import KafkaConsumer
 from config import settings
 from database import SessionLocal
 from services import rating_service, claim_service, geolocation_service
+from services.cv_parser import extract_text_from_url
 from redis_cache import cache_delete
 
 
@@ -13,8 +14,8 @@ INTERNAL_HEADERS = {"X-Internal-Key": settings.internal_api_key}
 
 def handle_worker_cv_submitted(payload: str):
     worker_id = payload.strip()
-    print(f"[CV Rating] Starting rating for worker {worker_id} (sleeping 3s first)...")
-    time.sleep(3)
+    print(f"[CV Rating] Starting rating for worker {worker_id}...")
+    time.sleep(1)
     try:
         print(f"[CV Rating] Fetching CV from Java service for worker {worker_id}...")
         resp = httpx.get(
@@ -26,6 +27,32 @@ def handle_worker_cv_submitted(payload: str):
             print(f"[CV Rating] ERROR — Could not fetch CV for worker {worker_id}: HTTP {resp.status_code}")
             return
         cv = resp.json()
+
+        # Extract text from the uploaded CV file (PDF or DOCX) if available
+        cv_file_url = cv.get("cvFileUrl")
+        cv_file_text = None
+        if cv_file_url:
+            print(f"[CV Rating] Extracting text from uploaded CV file for worker {worker_id}...")
+            cv_file_text = extract_text_from_url(cv_file_url)
+            if cv_file_text:
+                print(f"[CV Rating] Extracted {len(cv_file_text)} characters from CV file")
+            else:
+                print(f"[CV Rating] Could not extract text from CV file (unsupported format, empty, or parse error)")
+
+        # Build combined credentials: CV file content + manual credentials text
+        manual_credentials = cv.get("additionalCredentials") or ""
+        if cv_file_text and manual_credentials:
+            combined_credentials = (
+                f"[Uploaded CV File Content]:\n{cv_file_text}"
+                f"\n\n[Additional Credentials (self-declared)]:\n{manual_credentials}"
+            )
+        elif cv_file_text:
+            combined_credentials = f"[Uploaded CV File Content]:\n{cv_file_text}"
+        elif manual_credentials:
+            combined_credentials = manual_credentials
+        else:
+            combined_credentials = None
+
         db = SessionLocal()
         try:
             existing_rating = rating_service.get_rating(worker_id, db)
@@ -35,7 +62,7 @@ def handle_worker_cv_submitted(payload: str):
                 "worker_email": cv.get("workerEmail", ""),
                 "specialization": cv.get("specialization", ""),
                 "years_of_experience": cv.get("yearsOfExperience", 0),
-                "additional_credentials": cv.get("additionalCredentials"),
+                "additional_credentials": combined_credentials,
                 "completed_projects": existing_rating.completed_projects if existing_rating else 0,
                 "past_failures": existing_rating.past_failures if existing_rating else 0,
             }

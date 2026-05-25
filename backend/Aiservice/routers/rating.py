@@ -1,7 +1,10 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException
+import threading
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
+from config import settings
 from database import get_db
+from messaging.consumer import handle_worker_cv_submitted
 from schemas import WorkerRateRequest, WorkerRatingResponse, PenalizeWorkerRequest
 from services import rating_service
 from messaging.producer import publish_event
@@ -10,6 +13,23 @@ from redis_cache import cache_get, cache_set, cache_delete
 router = APIRouter(prefix="/api/ai/rating", tags=["Rating"])
 
 _RATING_TTL = 600  # 10 minutes
+
+
+@router.post("/internal/rate-cv/{worker_id}", status_code=202)
+def trigger_cv_rating(
+    worker_id: str,
+    x_internal_key: str = Header(...),
+):
+    """Called directly by the Java service after a CV is saved. Triggers rating in background."""
+    if x_internal_key != settings.internal_api_key:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    threading.Thread(
+        target=handle_worker_cv_submitted,
+        args=(worker_id,),
+        daemon=True,
+    ).start()
+    print(f"[AI HTTP] CV rating triggered for worker {worker_id}")
+    return {"message": "Rating triggered", "worker_id": worker_id}
 
 
 @router.post("/rate-worker", response_model=WorkerRatingResponse)

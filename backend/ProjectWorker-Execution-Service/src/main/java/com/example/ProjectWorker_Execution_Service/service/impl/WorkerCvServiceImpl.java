@@ -1,5 +1,6 @@
 package com.example.ProjectWorker_Execution_Service.service.impl;
 
+import com.example.ProjectWorker_Execution_Service.client.AiServiceClient;
 import com.example.ProjectWorker_Execution_Service.dto.WorkerCvResponse;
 import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.exception.ResourceNotFoundException;
@@ -28,6 +29,7 @@ public class WorkerCvServiceImpl implements WorkerCvService {
     private final WorkerCvRepository workerCvRepository;
     private final S3UploadService s3UploadService;
     private final ExecutionEventPublisher eventPublisher;
+    private final AiServiceClient aiServiceClient;
 
     @Override
     public WorkerCvResponse submitOrUpdateCv(String specialization, int yearsOfExperience,
@@ -38,11 +40,14 @@ public class WorkerCvServiceImpl implements WorkerCvService {
         }
         WorkerCvResponse response = persistCv(specialization, yearsOfExperience, additionalCredentials, cvFile, principal);
         if (isReadyForRating(response)) {
-            log.info("[CV] Publishing worker-cv-submitted for worker {} (spec={}, exp={})",
+            log.info("[CV] Triggering AI rating for worker {} (spec={}, exp={})",
                     principal.getUserId(), response.getSpecialization(), response.getYearsOfExperience());
+            // Call AI service directly via HTTP — reliable, no Kafka dependency
+            aiServiceClient.triggerCvRating(principal.getUserId());
+            // Also publish Kafka event for any other consumers
             eventPublisher.publishWorkerCvSubmitted(principal.getUserId());
         } else {
-            log.warn("[CV] Skipping rating event for worker {} — spec='{}', exp={}",
+            log.warn("[CV] Skipping rating for worker {} — spec='{}', exp={}",
                     principal.getUserId(), response.getSpecialization(), response.getYearsOfExperience());
         }
         return response;
