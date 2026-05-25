@@ -1,9 +1,12 @@
 package com.example.ProjectWorker_Execution_Service.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class ExecutionEventPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public void publishProjectPosted(String projectId, String providerId) {
         send("project-posted", projectId + ":" + providerId);
@@ -20,8 +24,17 @@ public class ExecutionEventPublisher {
         send("worker-cv-submitted", workerId);
     }
 
-    public void publishWorkerAssigned(String projectId, String workerId) {
-        send("worker-assigned-to-project", projectId + ":" + workerId);
+    public void publishWorkerAssigned(String projectId, String workerId, String providerId, String projectTitle) {
+        send("worker-assigned-to-project", toJson(Map.of(
+                "projectId", projectId,
+                "workerId", workerId,
+                "providerId", providerId,
+                "projectTitle", projectTitle
+        )));
+    }
+
+    public void publishWorkerApproval(String workerId, String status) {
+        send("worker-cv-approval", workerId + ":" + status);
     }
 
     public void publishProjectCompleted(String projectId) {
@@ -51,6 +64,15 @@ public class ExecutionEventPublisher {
             });
         } catch (Exception e) {
             log.error("[Kafka] Exception publishing to '{}': {}", topic, e.getMessage());
+        }
+    }
+
+    private String toJson(Map<String, String> map) {
+        try {
+            return MAPPER.writeValueAsString(map);
+        } catch (Exception e) {
+            log.error("[Kafka] Failed to serialize payload", e);
+            return "{}";
         }
     }
 }

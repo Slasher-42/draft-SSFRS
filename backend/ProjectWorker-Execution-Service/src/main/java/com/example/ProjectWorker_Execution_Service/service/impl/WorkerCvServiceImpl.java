@@ -124,6 +124,7 @@ public class WorkerCvServiceImpl implements WorkerCvService {
         workerCvRepository.findByWorkerId(workerId).ifPresent(cv -> {
             cv.setApprovalStatus(status);
             workerCvRepository.save(cv);
+            eventPublisher.publishWorkerApproval(workerId, status);
         });
     }
 

@@ -334,7 +334,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setAssignedWorkerId(workerId);
         project.setStatus(ProjectStatus.ASSIGNED);
         projectRepository.save(project);
-        eventPublisher.publishWorkerAssigned(projectId, workerId);
+        eventPublisher.publishWorkerAssigned(projectId, workerId, project.getProviderId(), project.getTitle());
         return toResponse(project);
     }
 
