@@ -9,9 +9,12 @@ import com.example.User_Management_Service.exception.UserNotFoundException;
 import com.example.User_Management_Service.kafka.UserEventPublisher;
 import com.example.User_Management_Service.model.User;
 import com.example.User_Management_Service.repository.UserRepository;
+import com.example.User_Management_Service.service.EmailService;
 import com.example.User_Management_Service.service.S3UploadService;
 import com.example.User_Management_Service.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -24,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -32,6 +36,10 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserEventPublisher userEventPublisher;
     private final S3UploadService s3UploadService;
+    private final EmailService emailService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     @Cacheable(value = "users", key = "#userId")
@@ -92,6 +100,16 @@ public class UserServiceImpl implements UserService {
                 .build();
         userRepository.save(user);
         userEventPublisher.publishUserRegistered(user.getId(), user.getRole().name());
+        try {
+            emailService.sendAccountCreatedEmail(
+                user.getEmail(),
+                user.getFullName(),
+                request.getTemporaryPassword(),
+                frontendUrl + "/login"
+            );
+        } catch (Exception e) {
+            log.warn("[Email] Could not send account creation email to {}: {}", user.getEmail(), e.getMessage());
+        }
         return mapToUserResponse(user);
     }
 

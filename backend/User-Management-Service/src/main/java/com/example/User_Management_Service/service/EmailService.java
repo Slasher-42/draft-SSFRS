@@ -31,6 +31,25 @@ public class EmailService {
         mailSender.send(message);
     }
 
+    public void sendAccountCreatedEmail(String toEmail, String fullName, String temporaryPassword, String loginUrl) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("SSFRS - Your account has been created");
+        message.setText(
+            "Hello " + fullName + ",\n\n" +
+            "An administrator has created an account for you on the SSFRS platform.\n\n" +
+            "Here are your login credentials:\n\n" +
+            "  Email:              " + toEmail + "\n" +
+            "  Temporary Password: " + temporaryPassword + "\n\n" +
+            "Please log in using the link below and change your password immediately:\n\n" +
+            "  " + loginUrl + "\n\n" +
+            "For security reasons, do not share these credentials with anyone.\n\n" +
+            "– SSFRS Team"
+        );
+        mailSender.send(message);
+    }
+
     public void sendPasswordResetEmail(String toEmail, String resetLink) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
