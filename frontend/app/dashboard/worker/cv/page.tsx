@@ -95,20 +95,23 @@ export default function WorkerCvPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [reset]);
 
-  const pollForRating = (previousScore: number) => {
+  // Polls until the score OR reasoning differs from the snapshot taken right after CV submission.
+  // previousScore and previousReasoning come from the submit response (not the pre-existing state),
+  // so they already reflect the saved CV — any subsequent change means the AI finished re-rating.
+  const pollForRating = (previousScore: number, previousReasoning: string | null) => {
     setRatingProcessing(true);
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
       try {
         const fresh = await workerCvService.getMyCv();
-        const ratingChanged = fresh.ratingScore !== previousScore;
-        const reasoningAppeared = !!fresh.ratingReasoning;
-        if (ratingChanged || reasoningAppeared || attempts >= 8) {
+        const scoreChanged    = fresh.ratingScore     !== previousScore;
+        const reasoningChanged = fresh.ratingReasoning !== previousReasoning;
+        if (scoreChanged || reasoningChanged || attempts >= 25) {
           setExisting(fresh);
           setRatingProcessing(false);
           if (pollRef.current) clearInterval(pollRef.current);
-          if (ratingChanged || reasoningAppeared) {
+          if (scoreChanged || reasoningChanged) {
             toast.success("AI rating updated!");
           }
         }
@@ -132,7 +135,6 @@ export default function WorkerCvPage() {
     console.log("[CV Submit] yearsOfExperience:", data.yearsOfExperience);
     console.log("[CV Submit] specialization:", finalSpec);
     try {
-      const previousScore = existing?.ratingScore ?? -1;
       const updated = await workerCvService.submitOrUpdateCv(
         finalSpec,
         data.yearsOfExperience,
@@ -142,7 +144,9 @@ export default function WorkerCvPage() {
       setExisting(updated);
       setCvFile(null);
       toast.success(existing ? "CV updated! The AI is re-rating your profile…" : "CV submitted! The AI is generating your score…");
-      pollForRating(previousScore);
+      // Baseline from the save response — AI hasn't run yet at this point,
+      // so both values still reflect the old rating. Poll until either changes.
+      pollForRating(updated.ratingScore, updated.ratingReasoning ?? null);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         || "Failed to save CV.";

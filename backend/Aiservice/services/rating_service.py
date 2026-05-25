@@ -6,25 +6,54 @@ from datetime import datetime
 
 
 def rate_worker(data: dict, db: Session) -> WorkerRating:
+    specialization = data.get('specialization', 'Not specified')
+    credentials = data.get('additional_credentials') or 'None provided'
+
     prompt = f"""You are an AI evaluator for a professional service platform called SSFRS (Smart Service Failure Refund System).
-Analyze this worker profile and generate a fair rating.
+Analyze this worker profile and generate a fair, strict rating.
 
 WORKER PROFILE:
-- Specialization: {data.get('specialization', 'Not specified')}
+- Declared Specialization / Job Title: {specialization}
 - Years of Experience: {data.get('years_of_experience', 0)} years
-- Additional Credentials: {data.get('additional_credentials') or 'None provided'}
+- CV Content / Credentials: {credentials}
 - Successfully Completed Projects on platform: {data.get('completed_projects', 0)}
 - Past Failures / Claims Filed Against Them: {data.get('past_failures', 0)}
 
-RATING CRITERIA (each scored 0.0 to 10.0):
-1. cv_score — Based on specialization depth and listed credentials
-2. experience_score — Based on years of professional experience
-3. projects_score — Based on number of successfully completed projects
-4. ratings_score — Estimated client satisfaction (use completed vs failure ratio as proxy)
-5. failure_score — Starts at 10.0, reduced by 1.5 per past failure (minimum 0.0)
+━━━ STEP 1: SPECIALIZATION ALIGNMENT CHECK (do this first) ━━━
+Read the CV Content carefully and determine whether it genuinely describes someone working in "{specialization}".
+Ask yourself: Does this CV describe skills, tools, tasks, projects, or training that belong to a "{specialization}" professional?
+
+Classify the match as one of:
+  • STRONG MATCH   — CV content clearly belongs to "{specialization}" (cv_score: 6.0–10.0)
+  • PARTIAL MATCH  — CV content is loosely related or in the same general industry (cv_score: 3.0–5.9)
+  • MISMATCH       — CV content describes a completely different profession (cv_score: 0.0–2.0)
+  • NO CV PROVIDED — credentials field is empty or says "None provided" (cv_score: 2.5)
+
+Examples of MISMATCH (these must score 0.0–2.0):
+  - Declared: "Software Engineer", CV contains: bricklaying, concrete, construction site work
+  - Declared: "Plumber", CV contains: graphic design, Photoshop, UI/UX portfolios
+  - Declared: "Electrician", CV contains: accounting, bookkeeping, tax filing
+  - Declared: "Chef", CV contains: Python programming, backend APIs, DevOps
+
+━━━ STEP 2: SCORE ALL CRITERIA ━━━
+After the alignment check, score each of the following (0.0 to 10.0):
+
+1. cv_score         — Reflects BOTH alignment (Step 1 result) AND depth/quality of credentials within the specialization.
+                      A MISMATCH caps this at 2.0 regardless of how detailed the CV is.
+2. experience_score — Years of professional experience declared (assume it's in the declared field).
+3. projects_score   — Number of successfully completed projects on the platform.
+4. ratings_score    — Estimated client satisfaction proxy (use completed vs failure ratio).
+5. failure_score    — Starts at 10.0, subtract 1.5 per past failure (minimum 0.0).
 
 OVERALL SCORE formula (weighted):
 overall = (cv_score * 0.20) + (experience_score * 0.25) + (projects_score * 0.25) + (ratings_score * 0.15) + (failure_score * 0.15)
+
+━━━ STEP 3: WRITE REASONING ━━━
+Address the worker directly (second-person "you / your").
+- If MISMATCH: Lead with this as the critical issue. Be direct but professional.
+- If STRONG/PARTIAL match: Summarise what is good and what could be improved.
+- Always end with a specific, actionable recommendation.
+- Length: 3–5 sentences.
 
 Respond ONLY with valid JSON, no markdown, no explanation outside JSON:
 {{
@@ -34,7 +63,7 @@ Respond ONLY with valid JSON, no markdown, no explanation outside JSON:
   "ratings_score": <float 0-10>,
   "failure_score": <float 0-10>,
   "overall_score": <float 0-10>,
-  "reasoning": "<Write 3-5 clear sentences addressed directly to the worker. First sentence: summarise the overall rating and why. Second sentence: highlight what is strong in their profile. Third sentence: state the most important thing they should add or improve in their CV to get a higher score (be specific — e.g. 'Add your certifications or credentials', 'Increase the number of completed projects', 'Reduce past claim failures'). Fourth sentence (if applicable): mention a second improvement area. Always be constructive and specific.>"
+  "reasoning": "<3-5 sentences addressed to the worker>"
 }}"""
 
     result = chat_json(prompt)

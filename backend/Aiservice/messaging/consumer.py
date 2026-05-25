@@ -5,6 +5,7 @@ from kafka import KafkaConsumer
 from config import settings
 from database import SessionLocal
 from services import rating_service, claim_service, geolocation_service
+from redis_cache import cache_delete
 
 
 INTERNAL_HEADERS = {"X-Internal-Key": settings.internal_api_key}
@@ -12,15 +13,17 @@ INTERNAL_HEADERS = {"X-Internal-Key": settings.internal_api_key}
 
 def handle_worker_cv_submitted(payload: str):
     worker_id = payload.strip()
+    print(f"[CV Rating] Starting rating for worker {worker_id} (sleeping 3s first)...")
     time.sleep(3)
     try:
+        print(f"[CV Rating] Fetching CV from Java service for worker {worker_id}...")
         resp = httpx.get(
             f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}",
             headers=INTERNAL_HEADERS,
             timeout=10,
         )
         if resp.status_code != 200:
-            print(f"[Consumer] Could not fetch CV for worker {worker_id}")
+            print(f"[CV Rating] ERROR — Could not fetch CV for worker {worker_id}: HTTP {resp.status_code}")
             return
         cv = resp.json()
         db = SessionLocal()
@@ -41,7 +44,8 @@ def handle_worker_cv_submitted(payload: str):
                   f"credentials={'YES' if worker_data['additional_credentials'] else 'NONE'}, "
                   f"projects={worker_data['completed_projects']}, failures={worker_data['past_failures']}")
             rating = rating_service.rate_worker(worker_data, db)
-            httpx.patch(
+            cache_delete(f"rating:{worker_id}")
+            patch_resp = httpx.patch(
                 f"{settings.service2_base_url}/api/internal/worker-cv/{worker_id}/rating",
                 json={
                     "ratingScore": rating.overall_score,
@@ -50,7 +54,11 @@ def handle_worker_cv_submitted(payload: str):
                 headers=INTERNAL_HEADERS,
                 timeout=10,
             )
-            print(f"[AI] Rated worker {worker_id}: {rating.overall_score:.2f}")
+            if patch_resp.status_code not in (200, 204):
+                print(f"[Consumer] PATCH rating failed for worker {worker_id}: "
+                      f"HTTP {patch_resp.status_code} — {patch_resp.text[:200]}")
+            else:
+                print(f"[AI] Rated worker {worker_id}: {rating.overall_score:.2f} (Java DB updated)")
         finally:
             db.close()
     except Exception as e:
@@ -153,8 +161,6 @@ def retrigger_unrated_workers(db_factory):
             for cv in cvs:
                 worker_id = cv.get("workerId")
                 if not worker_id:
-                    continue
-                if not cv.get("cvFileUrl"):
                     continue
                 if not cv.get("specialization") or not cv.get("yearsOfExperience"):
                     continue

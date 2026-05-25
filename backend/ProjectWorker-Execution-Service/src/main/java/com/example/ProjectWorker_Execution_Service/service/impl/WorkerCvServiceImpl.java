@@ -10,6 +10,7 @@ import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.S3UploadService;
 import com.example.ProjectWorker_Execution_Service.service.WorkerCvService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WorkerCvServiceImpl implements WorkerCvService {
@@ -36,14 +38,18 @@ public class WorkerCvServiceImpl implements WorkerCvService {
         }
         WorkerCvResponse response = persistCv(specialization, yearsOfExperience, additionalCredentials, cvFile, principal);
         if (isReadyForRating(response)) {
+            log.info("[CV] Publishing worker-cv-submitted for worker {} (spec={}, exp={})",
+                    principal.getUserId(), response.getSpecialization(), response.getYearsOfExperience());
             eventPublisher.publishWorkerCvSubmitted(principal.getUserId());
+        } else {
+            log.warn("[CV] Skipping rating event for worker {} — spec='{}', exp={}",
+                    principal.getUserId(), response.getSpecialization(), response.getYearsOfExperience());
         }
         return response;
     }
 
     private boolean isReadyForRating(WorkerCvResponse cv) {
-        return cv.getCvFileUrl() != null
-            && cv.getSpecialization() != null && !cv.getSpecialization().isBlank()
+        return cv.getSpecialization() != null && !cv.getSpecialization().isBlank()
             && cv.getYearsOfExperience() > 0;
     }
 
