@@ -31,9 +31,12 @@ public class ClaimController {
             @RequestParam("projectId") String projectId,
             @RequestParam("description") String description,
             @RequestParam(value = "proofDocuments", required = false) List<MultipartFile> proofDocuments,
+            @RequestParam(value = "ghostProjectImages", required = false) List<MultipartFile> ghostProjectImages,
+            @RequestParam(value = "messageEvidenceJson", required = false) String messageEvidenceJson,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                claimService.fileClaim(projectId, description, proofDocuments, principal));
+                claimService.fileClaim(projectId, description, proofDocuments,
+                        ghostProjectImages, messageEvidenceJson, principal));
     }
 
     @GetMapping("/api/claims/my")

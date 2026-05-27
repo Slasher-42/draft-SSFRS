@@ -6,11 +6,13 @@ import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.MessageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -39,5 +41,14 @@ public class MessageController {
     public ResponseEntity<List<MessageResponse>> getLatestConversations(
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(messageService.getLatestConversations(principal));
+    }
+
+    @GetMapping("/range")
+    public ResponseEntity<List<MessageResponse>> getMessagesInRange(
+            @RequestParam("partnerId") String partnerId,
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(messageService.getMessagesInRange(partnerId, from, to, principal));
     }
 }

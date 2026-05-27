@@ -30,6 +30,7 @@ export interface CreateProjectRequest {
   scopeOfWork: string;
   requiredSkills: string;
   category: ProjectCategoryValue;
+  constructionLocation?: string;
   deadline: string;
   budget: number;
   images?: { file: File; description: string }[];
@@ -43,9 +44,11 @@ export interface ProjectResponse {
   requiredSkills: string;
   category: ProjectCategoryValue | null;
   categoryDisplayName: string | null;
+  constructionLocation: string | null;
   deadline: string;
   budget: number;
   status: "OPEN" | "ASSIGNED" | "COMPLETED" | "FAILED";
+  funded: boolean;
   assignedWorkerId: string | null;
   images: ProjectImageResponse[];
   createdAt: string;
@@ -69,6 +72,7 @@ export const projectService = {
     form.append("scopeOfWork", data.scopeOfWork);
     form.append("requiredSkills", data.requiredSkills);
     form.append("category", data.category);
+    if (data.constructionLocation) form.append("constructionLocation", data.constructionLocation);
     form.append("deadline", data.deadline);
     form.append("budget", String(data.budget));
 

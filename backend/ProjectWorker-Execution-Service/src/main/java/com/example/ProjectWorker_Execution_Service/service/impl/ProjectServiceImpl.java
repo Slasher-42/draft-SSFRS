@@ -6,11 +6,13 @@ import com.example.ProjectWorker_Execution_Service.dto.RankedWorkerResponse;
 import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.exception.ResourceNotFoundException;
 import com.example.ProjectWorker_Execution_Service.kafka.ExecutionEventPublisher;
+import com.example.ProjectWorker_Execution_Service.model.Account;
 import com.example.ProjectWorker_Execution_Service.model.Project;
 import com.example.ProjectWorker_Execution_Service.model.ProjectCategory;
 import com.example.ProjectWorker_Execution_Service.model.ProjectImage;
 import com.example.ProjectWorker_Execution_Service.model.ProjectStatus;
 import com.example.ProjectWorker_Execution_Service.model.WorkerCv;
+import com.example.ProjectWorker_Execution_Service.repository.AccountRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ProjectImageRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ProjectRepository;
 import com.example.ProjectWorker_Execution_Service.repository.WorkerCvRepository;
@@ -44,6 +46,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectImageRepository projectImageRepository;
     private final WorkerCvRepository workerCvRepository;
+    private final AccountRepository accountRepository;
     private final S3UploadService s3UploadService;
     private final ExecutionEventPublisher eventPublisher;
 
@@ -107,7 +110,7 @@ public class ProjectServiceImpl implements ProjectService {
             @CacheEvict(value = "projects-open", allEntries = true)
     })
     public ProjectResponse createProject(String title, String scopeOfWork, String requiredSkills,
-                                          ProjectCategory category,
+                                          ProjectCategory category, String constructionLocation,
                                           LocalDate deadline, BigDecimal budget,
                                           List<MultipartFile> images, List<String> imageDescriptions,
                                           UserPrincipal principal) {
@@ -120,6 +123,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .scopeOfWork(scopeOfWork)
                 .requiredSkills(requiredSkills)
                 .category(category)
+                .constructionLocation(constructionLocation)
                 .deadline(deadline)
                 .budget(budget)
                 .build();
@@ -143,6 +147,7 @@ public class ProjectServiceImpl implements ProjectService {
             throw new ForbiddenException("Only admins can view all projects.");
         }
         return projectRepository.findAll().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getFunded()))
                 .sorted(Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -151,7 +156,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Cacheable(value = "projects-open", key = "'open'")
     public List<ProjectResponse> getOpenProjects() {
-        return projectRepository.findAllByStatus(ProjectStatus.OPEN)
+        return projectRepository.findAllByStatusAndFunded(ProjectStatus.OPEN, true)
                 .stream()
                 .sorted(Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toResponse)
@@ -171,7 +176,9 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = findProject(projectId);
         boolean isProvider = project.getProviderId().equals(principal.getUserId());
         boolean isWorker   = principal.getUserId().equals(project.getAssignedWorkerId());
-        if (!isProvider && !isWorker && !"ADMIN".equals(principal.getRole())) {
+        boolean isAdmin    = "ADMIN".equals(principal.getRole());
+        boolean isEvaluator = "EVALUATOR".equals(principal.getRole());
+        if (!isProvider && !isWorker && !isAdmin && !isEvaluator) {
             throw new ForbiddenException("Access denied.");
         }
         return toResponse(project);
@@ -198,6 +205,12 @@ public class ProjectServiceImpl implements ProjectService {
                 cv.setCompletedProjects(cv.getCompletedProjects() + 1);
                 workerCvRepository.save(cv);
             });
+            accountRepository.findByUserId(assignedWorker).ifPresent(workerAccount -> {
+                java.math.BigDecimal budget = project.getBudget();
+                workerAccount.setPendingBalance(workerAccount.getPendingBalance().subtract(budget));
+                workerAccount.setBalance(workerAccount.getBalance().add(budget));
+                accountRepository.save(workerAccount);
+            });
         }
         eventPublisher.publishProjectCompleted(projectId);
         return toResponse(project);
@@ -218,7 +231,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
         project.setStatus(ProjectStatus.FAILED);
         projectRepository.save(project);
-        eventPublisher.publishProjectFailed(projectId);
+        eventPublisher.publishProjectFailed(projectId, project.getProviderId(),
+                project.getAssignedWorkerId() != null ? project.getAssignedWorkerId() : "");
         return toResponse(project);
     }
 
@@ -331,11 +345,38 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStatus() != ProjectStatus.OPEN) {
             throw new IllegalArgumentException("Only open projects can have a worker assigned.");
         }
+        if (!Boolean.TRUE.equals(project.getFunded())) {
+            throw new IllegalArgumentException("This project has not been funded by the provider yet.");
+        }
+
+        accountRepository.findByUserId(project.getProviderId()).ifPresent(providerAccount -> {
+            providerAccount.setPendingBalance(
+                    providerAccount.getPendingBalance().subtract(project.getBudget()));
+            accountRepository.save(providerAccount);
+        });
+
+        Account workerAccount = accountRepository.findByUserId(workerId).orElseGet(() ->
+                accountRepository.save(Account.builder()
+                        .userId(workerId)
+                        .role("WORKER")
+                        .accountNumber(generateAccountNumber())
+                        .build()));
+        workerAccount.setPendingBalance(workerAccount.getPendingBalance().add(project.getBudget()));
+        accountRepository.save(workerAccount);
+
         project.setAssignedWorkerId(workerId);
         project.setStatus(ProjectStatus.ASSIGNED);
         projectRepository.save(project);
         eventPublisher.publishWorkerAssigned(projectId, workerId, project.getProviderId(), project.getTitle());
         return toResponse(project);
+    }
+
+    private String generateAccountNumber() {
+        String num;
+        do {
+            num = String.format("%010d", java.util.concurrent.ThreadLocalRandom.current().nextLong(0, 10_000_000_000L));
+        } while (accountRepository.existsByAccountNumber(num));
+        return num;
     }
 
     /** Returns true if the worker's specialization contains any category keyword. */
@@ -420,9 +461,11 @@ public class ProjectServiceImpl implements ProjectService {
                 .requiredSkills(p.getRequiredSkills())
                 .category(categoryName)
                 .categoryDisplayName(categoryDisplay)
+                .constructionLocation(p.getConstructionLocation())
                 .deadline(p.getDeadline())
                 .budget(p.getBudget())
                 .status(p.getStatus().name())
+                .funded(Boolean.TRUE.equals(p.getFunded()))
                 .assignedWorkerId(p.getAssignedWorkerId())
                 .images(images)
                 .createdAt(p.getCreatedAt())

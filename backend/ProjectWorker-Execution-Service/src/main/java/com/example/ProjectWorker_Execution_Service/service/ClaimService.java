@@ -10,7 +10,10 @@ import java.util.List;
 public interface ClaimService {
 
     ClaimResponse fileClaim(String projectId, String description,
-                             List<MultipartFile> proofDocuments, UserPrincipal principal);
+                             List<MultipartFile> proofDocuments,
+                             List<MultipartFile> ghostProjectImages,
+                             String messageEvidenceJson,
+                             UserPrincipal principal);
 
     List<ClaimResponse> getMyClaims(UserPrincipal principal);
 

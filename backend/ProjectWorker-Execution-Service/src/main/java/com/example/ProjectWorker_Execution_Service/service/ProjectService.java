@@ -13,7 +13,7 @@ import java.util.List;
 public interface ProjectService {
 
     ProjectResponse createProject(String title, String scopeOfWork, String requiredSkills,
-                                   ProjectCategory category,
+                                   ProjectCategory category, String constructionLocation,
                                    LocalDate deadline, BigDecimal budget,
                                    List<MultipartFile> images, List<String> imageDescriptions,
                                    UserPrincipal principal);

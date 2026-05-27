@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,18 +25,29 @@ public class NotificationController {
     @GetMapping("/my")
     public ResponseEntity<List<NotificationResponse>> getMyNotifications(
             @AuthenticationPrincipal UserPrincipal principal) {
-        List<NotificationResponse> notifications = notificationRepository
-                .findByRecipientIdOrderByCreatedAtDesc(principal.getUserId())
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(notifications);
+        List<Notification> personal = notificationRepository
+                .findByRecipientIdOrderByCreatedAtDesc(principal.getUserId());
+
+        List<NotificationResponse> result = new ArrayList<>(
+                personal.stream().map(this::toResponse).collect(Collectors.toList()));
+
+        if ("ADMIN".equals(principal.getRole())) {
+            List<Notification> adminBroadcasts = notificationRepository
+                    .findByRecipientIdOrderByCreatedAtDesc("ADMIN");
+            result.addAll(adminBroadcasts.stream().map(this::toResponse).collect(Collectors.toList()));
+            result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        }
+
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/my/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount(
             @AuthenticationPrincipal UserPrincipal principal) {
         long count = notificationRepository.countByRecipientIdAndReadFalse(principal.getUserId());
+        if ("ADMIN".equals(principal.getRole())) {
+            count += notificationRepository.countByRecipientIdAndReadFalse("ADMIN");
+        }
         return ResponseEntity.ok(Map.of("count", count));
     }
 
@@ -45,7 +57,9 @@ public class NotificationController {
             @PathVariable String id,
             @AuthenticationPrincipal UserPrincipal principal) {
         notificationRepository.findById(id).ifPresent(n -> {
-            if (n.getRecipientId().equals(principal.getUserId())) {
+            boolean isOwner = n.getRecipientId().equals(principal.getUserId());
+            boolean isAdminBroadcast = "ADMIN".equals(n.getRecipientId()) && "ADMIN".equals(principal.getRole());
+            if (isOwner || isAdminBroadcast) {
                 n.setRead(true);
                 notificationRepository.save(n);
             }
@@ -58,6 +72,9 @@ public class NotificationController {
     public ResponseEntity<Void> markAllRead(
             @AuthenticationPrincipal UserPrincipal principal) {
         notificationRepository.markAllReadByRecipientId(principal.getUserId());
+        if ("ADMIN".equals(principal.getRole())) {
+            notificationRepository.markAllReadByRecipientId("ADMIN");
+        }
         return ResponseEntity.noContent().build();
     }
 

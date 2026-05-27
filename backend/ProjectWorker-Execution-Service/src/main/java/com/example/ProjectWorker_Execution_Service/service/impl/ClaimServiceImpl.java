@@ -41,6 +41,8 @@ public class ClaimServiceImpl implements ClaimService {
     @Transactional
     public ClaimResponse fileClaim(String projectId, String description,
                                     List<MultipartFile> proofDocuments,
+                                    List<MultipartFile> ghostProjectImages,
+                                    String messageEvidenceJson,
                                     UserPrincipal principal) {
         if (!"PROVIDER".equals(principal.getRole())) {
             throw new ForbiddenException("Only project providers can file claims.");
@@ -95,12 +97,41 @@ public class ClaimServiceImpl implements ClaimService {
             }
         }
 
+        List<String> ghostKeys = new ArrayList<>();
+        if (ghostProjectImages != null) {
+            for (MultipartFile file : ghostProjectImages) {
+                if (file.isEmpty()) continue;
+                try {
+                    String key = s3UploadService.uploadFile(file, "claim-ghost-images");
+                    ghostKeys.add(key);
+
+                    if (geotagKey == null) {
+                        String ct = file.getContentType();
+                        if (ct != null && (ct.startsWith("image/jpeg") || ct.startsWith("image/jpg"))) {
+                            byte[] bytes = file.getBytes();
+                            GpsResult gps = extractGps(bytes);
+                            if (gps != null) {
+                                geotagKey = key;
+                                lat = gps.lat;
+                                lon = gps.lon;
+                                photoTimestamp = gps.timestamp;
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to upload ghost project image.");
+                }
+            }
+        }
+
         Claim claim = Claim.builder()
                 .projectId(projectId)
                 .providerId(principal.getUserId())
                 .workerId(project.getAssignedWorkerId())
                 .description(description)
                 .proofDocumentKeys(docKeys)
+                .ghostProjectImageKeys(ghostKeys)
+                .messageEvidenceJson(messageEvidenceJson)
                 .geotagPhotoKey(geotagKey)
                 .extractedLat(lat)
                 .extractedLon(lon)
@@ -114,23 +145,27 @@ public class ClaimServiceImpl implements ClaimService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ClaimResponse> getMyClaims(UserPrincipal principal) {
         return claimRepository.findAllByProviderIdOrderByCreatedAtDesc(principal.getUserId())
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ClaimResponse> getClaimsAgainstMe(UserPrincipal principal) {
         return claimRepository.findAllByWorkerIdOrderByCreatedAtDesc(principal.getUserId())
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClaimResponse getClaimById(String claimId, UserPrincipal principal) {
         Claim claim = findClaim(claimId);
         boolean isProvider = claim.getProviderId().equals(principal.getUserId());
         boolean isWorker = claim.getWorkerId().equals(principal.getUserId());
-        if (!isProvider && !isWorker && !"ADMIN".equals(principal.getRole())) {
+        boolean isEvaluator = "EVALUATOR".equals(principal.getRole());
+        if (!isProvider && !isWorker && !isEvaluator && !"ADMIN".equals(principal.getRole())) {
             throw new ForbiddenException("Access denied.");
         }
         return toResponse(claim);
@@ -169,6 +204,10 @@ public class ClaimServiceImpl implements ClaimService {
                 .map(s3UploadService::generatePresignedUrl)
                 .collect(Collectors.toList());
 
+        List<String> ghostUrls = c.getGhostProjectImageKeys().stream()
+                .map(s3UploadService::generatePresignedUrl)
+                .collect(Collectors.toList());
+
         return ClaimResponse.builder()
                 .id(c.getId())
                 .projectId(c.getProjectId())
@@ -177,6 +216,8 @@ public class ClaimServiceImpl implements ClaimService {
                 .description(c.getDescription())
                 .status(c.getStatus().name())
                 .proofDocumentUrls(docUrls)
+                .ghostProjectImageUrls(ghostUrls)
+                .messageEvidence(c.getMessageEvidenceJson())
                 .geotagPhotoUrl(s3UploadService.generatePresignedUrl(c.getGeotagPhotoKey()))
                 .extractedLat(c.getExtractedLat())
                 .extractedLon(c.getExtractedLon())

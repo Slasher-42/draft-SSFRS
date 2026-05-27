@@ -22,6 +22,8 @@ import {
   GraduationCap,
   Award,
   ShieldCheck,
+  Wallet,
+  ClipboardCheck,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -42,6 +44,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "My Claims", href: "/dashboard/provider/claims", icon: <FileText className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messages", href: "/dashboard/provider/messages", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
         { label: "Contract", href: "/dashboard/provider/contract", icon: <FileSignature className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Account", href: "/dashboard/provider/account", icon: <Wallet className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "WORKER":
       return [
@@ -54,11 +57,13 @@ function getNavItems(role: string): NavItem[] {
         { label: "Claims Against Me", href: "/dashboard/worker/claims", icon: <AlertCircle className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messages", href: "/dashboard/worker/messages", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
         { label: "Contract", href: "/dashboard/worker/contract", icon: <FileSignature className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Account", href: "/dashboard/worker/account", icon: <Wallet className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "EVALUATOR":
       return [
         { label: "Dashboard", href: "/dashboard/evaluator", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/evaluator/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Submitted Claims", href: "/dashboard/evaluator/claims", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "REFUND_OFFICE":
       return [

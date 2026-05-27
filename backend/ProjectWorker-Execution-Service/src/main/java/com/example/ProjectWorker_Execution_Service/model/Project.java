@@ -49,6 +49,12 @@ public class Project {
 
     private String assignedWorkerId;
 
+    private String constructionLocation;
+
+    @Builder.Default
+    @Column
+    private Boolean funded = Boolean.FALSE;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

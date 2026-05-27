@@ -129,4 +129,104 @@ public class NotificationConsumer {
             log.error("[Notification] Failed to process worker-cv-approval: {}", e.getMessage(), e);
         }
     }
+
+    @Transactional
+    @KafkaListener(topics = "project-marked-failed", groupId = "notification-service-group",
+                   containerFactory = "kafkaListenerContainerFactory")
+    public void onProjectFailed(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String payload = record.value();
+        log.info("[Notification] project-marked-failed: {}", payload);
+
+        if (payload == null || !payload.trim().startsWith("{")) {
+            log.warn("[Notification] Skipping legacy non-JSON payload for project-marked-failed: {}", payload);
+            ack.acknowledge();
+            return;
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> data = MAPPER.readValue(payload, Map.class);
+
+            String projectId  = data.get("projectId");
+            String providerId = data.get("providerId");
+            String workerId   = data.get("workerId");
+
+            if (projectId == null) {
+                log.warn("[Notification] Missing projectId in project-marked-failed payload");
+                ack.acknowledge();
+                return;
+            }
+
+            String adminData = MAPPER.writeValueAsString(Map.of(
+                    "projectId", projectId,
+                    "providerId", providerId != null ? providerId : "",
+                    "workerId",   workerId   != null ? workerId   : ""
+            ));
+
+            notificationRepository.save(Notification.builder()
+                    .recipientId("ADMIN")
+                    .type("PROJECT_MARKED_FAILED")
+                    .title("Project Marked as Failed")
+                    .message("A project has been marked as failed. Provider ID: " + providerId
+                            + " | Worker ID: " + workerId + " | Project ID: " + projectId + ".")
+                    .data(adminData)
+                    .build());
+
+            ack.acknowledge();
+            log.info("[Notification] Saved admin notification for failed project={}", projectId);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to process project-marked-failed: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    @KafkaListener(topics = "claim-decision", groupId = "notification-service-group",
+                   containerFactory = "kafkaListenerContainerFactory")
+    public void onClaimDecision(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String payload = record.value();
+        log.info("[Notification] claim-decision: {}", payload);
+
+        if (payload == null || !payload.trim().startsWith("{")) {
+            log.warn("[Notification] Skipping non-JSON payload for claim-decision: {}", payload);
+            ack.acknowledge();
+            return;
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> data = MAPPER.readValue(payload, Map.class);
+
+            String claimId  = data.get("claimId");
+            String workerId = data.get("workerId");
+            String decision = data.get("decision");
+
+            if (workerId == null || claimId == null || decision == null) {
+                log.warn("[Notification] Incomplete claim-decision payload, skipping: {}", payload);
+                ack.acknowledge();
+                return;
+            }
+
+            boolean approved = "APPROVED".equalsIgnoreCase(decision);
+            String type    = approved ? "CLAIM_APPROVED_AGAINST_WORKER" : "CLAIM_REJECTED_AGAINST_WORKER";
+            String title   = approved ? "Claim Approved Against You" : "Claim Against You Was Rejected";
+            String message = approved
+                    ? "A claim filed against you has been approved by an evaluator. Please check your claims section for details."
+                    : "A claim filed against you has been reviewed and the evaluator decided to reject it.";
+
+            String notifData = MAPPER.writeValueAsString(Map.of("claimId", claimId));
+
+            notificationRepository.save(Notification.builder()
+                    .recipientId(workerId)
+                    .type(type)
+                    .title(title)
+                    .message(message)
+                    .data(notifData)
+                    .build());
+
+            ack.acknowledge();
+            log.info("[Notification] Saved claim-decision notification for worker={} decision={}", workerId, decision);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to process claim-decision: {}", e.getMessage(), e);
+        }
+    }
 }

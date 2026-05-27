@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ImagePlus, X, Edit3, ChevronDown } from "lucide-react";
+import { ArrowLeft, ImagePlus, X, Edit3, ChevronDown, MapPin } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { projectService, PROJECT_CATEGORIES, type ProjectCategoryValue } from "@/lib/projectService";
@@ -36,6 +36,8 @@ export default function NewProjectPage() {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<ProjectCategoryValue | "">("");
   const [categoryError, setCategoryError] = useState("");
+  const [constructionLocation, setConstructionLocation] = useState("");
+  const [locationError, setLocationError] = useState("");
   const [imageEntries, setImageEntries] = useState<ImageEntry[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,11 +85,19 @@ export default function NewProjectPage() {
       return;
     }
     setCategoryError("");
+
+    if (category === "CONSTRUCTION" && !constructionLocation.trim()) {
+      setLocationError("Construction location is required for construction projects.");
+      return;
+    }
+    setLocationError("");
+
     setLoading(true);
     try {
       await projectService.createProject({
         ...data,
         category: category as ProjectCategoryValue,
+        constructionLocation: category === "CONSTRUCTION" ? constructionLocation.trim() : undefined,
         images: imageEntries.map((e) => ({
           file: e.file,
           description: e.description.trim() || `Supporting image`,
@@ -128,7 +138,6 @@ export default function NewProjectPage() {
         style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* ─── Text fields ─── */}
           <Field label="Project Title" error={errors.title?.message}>
             <input
               {...register("title")}
@@ -157,7 +166,6 @@ export default function NewProjectPage() {
             />
           </Field>
 
-          {/* ─── Field of Expertise (Category) ─── */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
               Field of Expertise <span style={{ color: "#ef4444" }}>*</span>
@@ -171,6 +179,10 @@ export default function NewProjectPage() {
                 onChange={(e) => {
                   setCategory(e.target.value as ProjectCategoryValue | "");
                   if (e.target.value) setCategoryError("");
+                  if (e.target.value !== "CONSTRUCTION") {
+                    setConstructionLocation("");
+                    setLocationError("");
+                  }
                 }}
                 className={inputBase + " appearance-none pr-8"}
                 style={border(!!categoryError)}
@@ -189,6 +201,49 @@ export default function NewProjectPage() {
               <p className="text-xs" style={{ color: "#ef4444" }}>{categoryError}</p>
             )}
           </div>
+
+          <AnimatePresence>
+            {category === "CONSTRUCTION" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div
+                  className="rounded-xl border p-4 space-y-3"
+                  style={{
+                    borderColor: locationError ? "#ef4444" : "var(--color-primary-200)",
+                    backgroundColor: "color-mix(in srgb, var(--color-primary-50) 60%, transparent)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" style={{ color: "var(--color-primary-600)" }} />
+                    <p className="text-sm font-medium" style={{ color: "var(--color-primary-800)" }}>
+                      Construction Site Location
+                    </p>
+                  </div>
+                  <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                    Required for construction projects. Provide the address or description of the construction site.
+                  </p>
+                  <input
+                    value={constructionLocation}
+                    onChange={(e) => {
+                      setConstructionLocation(e.target.value);
+                      if (e.target.value.trim()) setLocationError("");
+                    }}
+                    placeholder="e.g. 123 Main Street, Kigali, Rwanda"
+                    className={inputBase}
+                    style={border(!!locationError)}
+                  />
+                  {locationError && (
+                    <p className="text-xs" style={{ color: "#ef4444" }}>{locationError}</p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Deadline" error={errors.deadline?.message}>
@@ -211,7 +266,6 @@ export default function NewProjectPage() {
             </Field>
           </div>
 
-          {/* ─── Supporting Images ─── */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -262,10 +316,8 @@ export default function NewProjectPage() {
                     className="flex gap-3 rounded-xl border p-3"
                     style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-neutral-50)" }}
                   >
-                    {/* Thumbnail */}
                     <div className="relative flex-shrink-0 h-20 w-20 rounded-lg overflow-hidden"
                       style={{ border: "1px solid var(--color-border)" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={entry.preview}
                         alt=""
@@ -273,7 +325,6 @@ export default function NewProjectPage() {
                       />
                     </div>
 
-                    {/* Description input */}
                     <div className="flex-1 flex flex-col justify-between min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-xs font-medium truncate"

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,6 +49,13 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public List<MessageResponse> getLatestConversations(UserPrincipal principal) {
         return messageRepository.findDistinctByConversationIdContainingOrderBySentAtDesc(principal.getUserId())
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MessageResponse> getMessagesInRange(String partnerId, LocalDateTime from, LocalDateTime to, UserPrincipal principal) {
+        String convId = conversationId(principal.getUserId(), partnerId);
+        return messageRepository.findByConversationIdAndSentAtBetween(convId, from, to)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 

@@ -66,6 +66,11 @@ export const notificationService = {
       case "WORKER_REJECTED":
       case "WORKER_CV_STATUS":
         return "/dashboard/worker/cv";
+      case "PROJECT_MARKED_FAILED":
+        return "/dashboard/admin/projects";
+      case "CLAIM_APPROVED_AGAINST_WORKER":
+      case "CLAIM_REJECTED_AGAINST_WORKER":
+        return "/dashboard/worker/claims";
       default:
         return "#";
     }

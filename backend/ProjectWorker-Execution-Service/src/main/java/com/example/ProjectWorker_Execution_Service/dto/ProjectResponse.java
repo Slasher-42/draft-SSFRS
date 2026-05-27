@@ -25,6 +25,8 @@ public class ProjectResponse {
     private BigDecimal budget;
     private String status;
     private String assignedWorkerId;
+    private String constructionLocation;
+    private boolean funded;
     private List<ProjectImageResponse> images;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

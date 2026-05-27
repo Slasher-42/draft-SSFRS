@@ -41,8 +41,12 @@ public class ExecutionEventPublisher {
         send("project-marked-completed", projectId);
     }
 
-    public void publishProjectFailed(String projectId) {
-        send("project-marked-failed", projectId);
+    public void publishProjectFailed(String projectId, String providerId, String workerId) {
+        send("project-marked-failed", toJson(Map.of(
+                "projectId", projectId,
+                "providerId", providerId,
+                "workerId", workerId
+        )));
     }
 
     public void publishClaimFiled(String claimId, String projectId, String workerId) {

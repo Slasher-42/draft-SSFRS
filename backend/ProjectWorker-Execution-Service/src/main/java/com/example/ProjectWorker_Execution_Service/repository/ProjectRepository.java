@@ -13,4 +13,6 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
     List<Project> findAllByAssignedWorkerIdOrderByCreatedAtDesc(String workerId);
 
     List<Project> findAllByStatus(ProjectStatus status);
+
+    List<Project> findAllByStatusAndFunded(ProjectStatus status, Boolean funded);
 }

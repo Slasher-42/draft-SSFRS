@@ -20,6 +20,8 @@ public class ClaimResponse {
     private Double extractedLat;
     private Double extractedLon;
     private String extractedPhotoTimestamp;
+    private List<String> ghostProjectImageUrls;
+    private String messageEvidence;
     private String workerResponse;
     private String aiMediationReport;
     private LocalDateTime createdAt;

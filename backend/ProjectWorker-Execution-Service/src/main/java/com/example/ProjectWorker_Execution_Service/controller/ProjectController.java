@@ -30,6 +30,7 @@ public class ProjectController {
             @RequestParam("scopeOfWork") String scopeOfWork,
             @RequestParam("requiredSkills") String requiredSkills,
             @RequestParam("category") String category,
+            @RequestParam(value = "constructionLocation", required = false) String constructionLocation,
             @RequestParam("deadline") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline,
             @RequestParam("budget") BigDecimal budget,
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
@@ -38,7 +39,7 @@ public class ProjectController {
         ProjectCategory projectCategory = ProjectCategory.valueOf(category);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 projectService.createProject(title, scopeOfWork, requiredSkills,
-                        projectCategory, deadline, budget, images, imageDescriptions, principal));
+                        projectCategory, constructionLocation, deadline, budget, images, imageDescriptions, principal));
     }
 
     @GetMapping("/my")

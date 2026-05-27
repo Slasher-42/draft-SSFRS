@@ -49,6 +49,15 @@ public class Claim {
     private Double extractedLon;
     private String extractedPhotoTimestamp;
 
+    @ElementCollection
+    @CollectionTable(name = "claim_ghost_images", joinColumns = @JoinColumn(name = "claim_id"))
+    @Column(name = "image_key")
+    @Builder.Default
+    private List<String> ghostProjectImageKeys = new ArrayList<>();
+
+    @Column(columnDefinition = "TEXT")
+    private String messageEvidenceJson;
+
     @Column(columnDefinition = "TEXT")
     private String workerResponse;
 
