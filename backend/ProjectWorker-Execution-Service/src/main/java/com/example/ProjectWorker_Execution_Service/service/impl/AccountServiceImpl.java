@@ -137,7 +137,6 @@ public class AccountServiceImpl implements AccountService {
                         .build()));
 
         account.setBalance(account.getBalance().add(request.getAmount()));
-        account.setPendingBalance(account.getPendingBalance().add(request.getAmount()));
         accountRepository.save(account);
 
         project.setFunded(true);

@@ -201,15 +201,19 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(ProjectStatus.COMPLETED);
         projectRepository.save(project);
         if (assignedWorker != null) {
+            java.math.BigDecimal budget = project.getBudget();
             workerCvRepository.findByWorkerId(assignedWorker).ifPresent(cv -> {
                 cv.setCompletedProjects(cv.getCompletedProjects() + 1);
                 workerCvRepository.save(cv);
             });
             accountRepository.findByUserId(assignedWorker).ifPresent(workerAccount -> {
-                java.math.BigDecimal budget = project.getBudget();
                 workerAccount.setPendingBalance(workerAccount.getPendingBalance().subtract(budget));
                 workerAccount.setBalance(workerAccount.getBalance().add(budget));
                 accountRepository.save(workerAccount);
+            });
+            accountRepository.findByUserId(project.getProviderId()).ifPresent(providerAccount -> {
+                providerAccount.setPendingBalance(providerAccount.getPendingBalance().subtract(budget));
+                accountRepository.save(providerAccount);
             });
         }
         eventPublisher.publishProjectCompleted(projectId);
@@ -229,8 +233,21 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStatus() != ProjectStatus.ASSIGNED) {
             throw new IllegalArgumentException("Only assigned projects can be marked as failed.");
         }
+        java.math.BigDecimal budget = project.getBudget();
         project.setStatus(ProjectStatus.FAILED);
         projectRepository.save(project);
+
+        if (project.getAssignedWorkerId() != null) {
+            accountRepository.findByUserId(project.getAssignedWorkerId()).ifPresent(workerAccount -> {
+                workerAccount.setPendingBalance(workerAccount.getPendingBalance().subtract(budget));
+                accountRepository.save(workerAccount);
+            });
+        }
+        accountRepository.findByUserId(project.getProviderId()).ifPresent(providerAccount -> {
+            providerAccount.setPendingBalance(providerAccount.getPendingBalance().subtract(budget));
+            accountRepository.save(providerAccount);
+        });
+
         eventPublisher.publishProjectFailed(projectId, project.getProviderId(),
                 project.getAssignedWorkerId() != null ? project.getAssignedWorkerId() : "");
         return toResponse(project);
@@ -350,8 +367,8 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         accountRepository.findByUserId(project.getProviderId()).ifPresent(providerAccount -> {
-            providerAccount.setPendingBalance(
-                    providerAccount.getPendingBalance().subtract(project.getBudget()));
+            providerAccount.setBalance(providerAccount.getBalance().subtract(project.getBudget()));
+            providerAccount.setPendingBalance(providerAccount.getPendingBalance().add(project.getBudget()));
             accountRepository.save(providerAccount);
         });
 

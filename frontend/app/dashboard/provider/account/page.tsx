@@ -22,7 +22,7 @@ const emptyForm: BankAccountRequest = { bankName: "", accountNumber: "", account
 
 export default function ProviderAccountPage() {
   const [account, setAccount] = useState<AccountResponse | null>(null);
-  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [allProjects, setAllProjects] = useState<ProjectResponse[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,13 +47,21 @@ export default function ProviderAccountPage() {
       accountService.getBankAccounts(),
     ]).then(([acc, projs, banks]) => {
       setAccount(acc);
-      setProjects(projs.filter(p => p.status === "OPEN" && !p.funded));
+      setAllProjects(projs);
       setBankAccounts(banks);
       const def = banks.find(b => b.defaultAccount);
       if (def) setSelectedBankAccountId(def.id);
     }).catch(() => toast.error("Failed to load account."))
       .finally(() => setLoading(false));
   }, []);
+
+  const projects = allProjects.filter(p => p.status === "OPEN" && !p.funded);
+  const totalDeposited = allProjects
+    .filter(p => p.status === "OPEN" && p.funded)
+    .reduce((sum, p) => sum + p.budget, 0);
+  const lockedTotal = allProjects
+    .filter(p => p.status === "ASSIGNED")
+    .reduce((sum, p) => sum + p.budget, 0);
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
@@ -68,7 +76,9 @@ export default function ProviderAccountPage() {
         selectedBankAccountId,
       );
       setAccount(updated);
-      setProjects(prev => prev.filter(p => p.id !== selectedProject.id));
+      setAllProjects(prev => prev.map(p =>
+        p.id === selectedProject.id ? { ...p, funded: true } : p
+      ));
       setSelectedProjectId("");
       setDepositOpen(false);
       toast.success(`Successfully deposited $${selectedProject.budget} for "${selectedProject.title}".`);
@@ -185,7 +195,7 @@ export default function ProviderAccountPage() {
               <p className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>Total Deposited</p>
             </div>
             <p className="text-xl font-bold" style={{ color: "var(--color-foreground)" }}>
-              ${account?.balance?.toFixed(2) ?? "0.00"}
+              ${totalDeposited.toFixed(2)}
             </p>
           </div>
           <div className="rounded-lg border p-4"
@@ -195,10 +205,11 @@ export default function ProviderAccountPage() {
               <p className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>Locked in Projects</p>
             </div>
             <p className="text-xl font-bold" style={{ color: "var(--color-foreground)" }}>
-              ${account?.pendingBalance?.toFixed(2) ?? "0.00"}
+              ${lockedTotal.toFixed(2)}
             </p>
           </div>
         </div>
+
       </motion.div>
 
       {/* Bank accounts card */}

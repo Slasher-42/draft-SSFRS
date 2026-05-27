@@ -10,6 +10,7 @@ import {
   type BankAccountResponse,
   type BankAccountRequest,
 } from "@/lib/accountService";
+import { projectService, type ProjectResponse } from "@/lib/projectService";
 
 const maskAccount = (num: string) =>
   num.length <= 4 ? num : "•••• " + num.slice(-4);
@@ -18,8 +19,13 @@ const emptyForm: BankAccountRequest = { bankName: "", accountNumber: "", account
 
 export default function WorkerAccountPage() {
   const [account, setAccount] = useState<AccountResponse | null>(null);
+  const [assignedProjects, setAssignedProjects] = useState<ProjectResponse[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const pendingTotal = assignedProjects
+    .filter(p => p.status === "ASSIGNED")
+    .reduce((sum, p) => sum + p.budget, 0);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,9 +38,11 @@ export default function WorkerAccountPage() {
     Promise.all([
       accountService.getAccount(),
       accountService.getBankAccounts(),
-    ]).then(([acc, banks]) => {
+      projectService.getAssignedProjects(),
+    ]).then(([acc, banks, assigned]) => {
       setAccount(acc);
       setBankAccounts(banks);
+      setAssignedProjects(assigned);
     }).catch(() => toast.error("Failed to load account."))
       .finally(() => setLoading(false));
   }, []);
@@ -149,7 +157,7 @@ export default function WorkerAccountPage() {
               <p className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>Pending Earnings</p>
             </div>
             <p className="text-xl font-bold" style={{ color: "var(--color-foreground)" }}>
-              ${account?.pendingBalance?.toFixed(2) ?? "0.00"}
+              ${pendingTotal.toFixed(2)}
             </p>
             <p className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
               Locked until project completes
