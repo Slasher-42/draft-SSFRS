@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Calendar, DollarSign,
+  ArrowLeft, Calendar, DollarSign, MapPin,
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X,
   Star, Briefcase, Award, Mail,
 } from "lucide-react";
@@ -159,7 +159,7 @@ export default function ProjectDetailPage() {
             ))}
           </div>
         </div>
-        <div className="flex gap-6">
+        <div className="flex flex-wrap gap-6">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4" style={{ color: "var(--color-neutral-400)" }} />
             <span className="text-sm" style={{ color: "var(--color-foreground)" }}>
@@ -172,6 +172,14 @@ export default function ProjectDetailPage() {
               {Number(project.budget).toLocaleString()}
             </span>
           </div>
+          {project.constructionLocation && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" style={{ color: "var(--color-neutral-400)" }} />
+              <span className="text-sm" style={{ color: "var(--color-foreground)" }}>
+                {project.constructionLocation}
+              </span>
+            </div>
+          )}
         </div>
       </motion.div>
 
