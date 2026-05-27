@@ -13,6 +13,7 @@ interface Contact {
   userId: string;
   name: string;
   projectName: string;
+  projectStatus: string;
   profileImageUrl: string | null;
   online: boolean;
 }
@@ -105,7 +106,7 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
 
         await Promise.allSettled(
           projects
-            .filter((p) => p.status === "ASSIGNED" || p.status === "COMPLETED")
+            .filter((p) => p.status === "ASSIGNED" || p.status === "COMPLETED" || p.status === "FAILED")
             .map(async (p) => {
               const otherId =
                 role === "PROVIDER" ? p.assignedWorkerId : p.providerId;
@@ -137,6 +138,7 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
                 userId: otherId,
                 name: resolvedName,
                 projectName: p.title,
+                projectStatus: p.status,
                 profileImageUrl,
                 online: false,
               });
@@ -258,9 +260,19 @@ export default function MessagesPage({ role }: { role: "PROVIDER" | "WORKER" }) 
                   />
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: "var(--color-foreground)" }}>
-                      {c.name}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold truncate" style={{ color: "var(--color-foreground)" }}>
+                        {c.name}
+                      </p>
+                      {(c.projectStatus === "COMPLETED" || c.projectStatus === "FAILED") && (
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0"
+                          style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
+                        >
+                          Former
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs truncate mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
                       [{c.projectName}]
                     </p>
