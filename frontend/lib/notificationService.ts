@@ -71,6 +71,15 @@ export const notificationService = {
       case "CLAIM_APPROVED_AGAINST_WORKER":
       case "CLAIM_REJECTED_AGAINST_WORKER":
         return "/dashboard/worker/claims";
+      case "CLAIM_APPROVED_FOR_PROVIDER":
+      case "CLAIM_REJECTED_FOR_PROVIDER":
+        return d.claimId
+          ? `/dashboard/provider/claims/${d.claimId}`
+          : "/dashboard/provider/claims";
+      case "REFUND_PROCESS_REQUESTED":
+        return "/dashboard/refund-office/claims";
+      case "REFUND_COMPLETED":
+        return "/dashboard/provider/account";
       default:
         return "#";
     }

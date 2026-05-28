@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Wallet,
   ClipboardCheck,
+  RefreshCw,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -69,6 +70,7 @@ function getNavItems(role: string): NavItem[] {
       return [
         { label: "Dashboard", href: "/dashboard/refund-office", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/refund-office/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Refund Claims", href: "/dashboard/refund-office/claims", icon: <RefreshCw className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "ADMIN":
       return [

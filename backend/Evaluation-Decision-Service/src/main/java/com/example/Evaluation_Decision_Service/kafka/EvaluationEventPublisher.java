@@ -16,10 +16,20 @@ public class EvaluationEventPublisher {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public void publishClaimDecision(String claimId, String workerId, String decision) {
+    public void publishRefundInitiated(String claimId, String providerId, String workerId, String projectId) {
+        send("refund-initiated", toJson(Map.of(
+                "claimId", claimId,
+                "providerId", providerId,
+                "workerId", workerId,
+                "projectId", projectId
+        )));
+    }
+
+    public void publishClaimDecision(String claimId, String workerId, String providerId, String decision) {
         send("claim-decision", toJson(Map.of(
                 "claimId", claimId,
                 "workerId", workerId,
+                "providerId", providerId,
                 "decision", decision
         )));
     }

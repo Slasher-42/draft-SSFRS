@@ -64,7 +64,7 @@ public class EvaluatorClaimServiceImpl implements EvaluatorClaimService {
         }
         claim.setStatus(ClaimStatus.APPROVED);
         claimRepository.save(claim);
-        eventPublisher.publishClaimDecision(claimId, claim.getWorkerId(), "APPROVED");
+        eventPublisher.publishClaimDecision(claimId, claim.getWorkerId(), claim.getProviderId(), "APPROVED");
         return toResponse(claim, fetchProject(claim.getProjectId()));
     }
 
@@ -80,7 +80,23 @@ public class EvaluatorClaimServiceImpl implements EvaluatorClaimService {
         }
         claim.setStatus(ClaimStatus.REJECTED);
         claimRepository.save(claim);
-        eventPublisher.publishClaimDecision(claimId, claim.getWorkerId(), "REJECTED");
+        eventPublisher.publishClaimDecision(claimId, claim.getWorkerId(), claim.getProviderId(), "REJECTED");
+        return toResponse(claim, fetchProject(claim.getProjectId()));
+    }
+
+    @Override
+    @Transactional
+    public EvaluatorClaimResponse initiateRefund(String claimId, UserPrincipal principal) {
+        if (!"EVALUATOR".equals(principal.getRole())) {
+            throw new ForbiddenException("Only evaluators can initiate refund processes.");
+        }
+        Claim claim = findClaim(claimId);
+        if (claim.getStatus() != ClaimStatus.APPROVED) {
+            throw new IllegalArgumentException("Only approved claims can have a refund initiated.");
+        }
+        claim.setStatus(ClaimStatus.REFUND_INITIATED);
+        claimRepository.save(claim);
+        eventPublisher.publishRefundInitiated(claimId, claim.getProviderId(), claim.getWorkerId(), claim.getProjectId());
         return toResponse(claim, fetchProject(claim.getProjectId()));
     }
 

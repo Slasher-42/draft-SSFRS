@@ -3,6 +3,7 @@ package com.example.ProjectWorker_Execution_Service.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,6 +25,7 @@ public class ClaimResponse {
     private String messageEvidence;
     private String workerResponse;
     private String aiMediationReport;
+    private BigDecimal projectBudget;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -10,4 +10,5 @@ public interface EvaluatorClaimService {
     EvaluatorClaimResponse getClaimById(String claimId, UserPrincipal principal);
     EvaluatorClaimResponse approveClaim(String claimId, UserPrincipal principal);
     EvaluatorClaimResponse rejectClaim(String claimId, UserPrincipal principal);
+    EvaluatorClaimResponse initiateRefund(String claimId, UserPrincipal principal);
 }

@@ -33,4 +33,8 @@ public interface ClaimService {
                                   UserPrincipal principal);
 
     void updateAiMediationReport(String claimId, String report);
+
+    List<ClaimResponse> getRefundPendingClaims(UserPrincipal principal);
+
+    ClaimResponse processRefund(String claimId, UserPrincipal principal);
 }

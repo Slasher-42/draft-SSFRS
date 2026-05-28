@@ -4,13 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle, XCircle, MapPin, MessageSquare, ChevronDown, ChevronUp,
-  AlertTriangle, Eye, Filter,
+  AlertTriangle, Eye, Filter, RefreshCw,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { evaluatorService, type EvaluatorClaimResponse, type MessageEvidenceItem } from "@/lib/evaluatorService";
 import { aiService, type ImageVerificationResult } from "@/lib/aiService";
 
-type StatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
+type StatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "REFUND_INITIATED" | "REFUNDED";
 
 interface GeoValidationResult {
   imageCoords: { lat: number; lon: number } | null;
@@ -158,6 +158,19 @@ export default function EvaluatorClaimsPage() {
     }
   };
 
+  const handleInitiateRefund = async (id: string) => {
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const updated = await evaluatorService.initiateRefund(id);
+      setClaims(prev => prev.map(c => c.id === id ? updated : c));
+      toast.success("Refund process initiated. Refund office notified.");
+    } catch {
+      toast.error("Failed to initiate refund process.");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
   const handleReject = async (id: string) => {
     setActionLoading(prev => ({ ...prev, [id]: true }));
     try {
@@ -175,6 +188,9 @@ export default function EvaluatorClaimsPage() {
     statusFilter === "ALL" ? true : c.status === statusFilter
   );
 
+  // Keep filter buttons only for relevant statuses
+  const filterOptions: StatusFilter[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "REFUND_INITIATED", "REFUNDED"];
+
   const parseMessages = (json: string | null): MessageEvidenceItem[] => {
     if (!json) return [];
     try { return JSON.parse(json) as MessageEvidenceItem[]; } catch { return []; }
@@ -185,6 +201,8 @@ export default function EvaluatorClaimsPage() {
       PENDING: { bg: "#f59e0b", text: "Pending" },
       APPROVED: { bg: "#22c55e", text: "Approved" },
       REJECTED: { bg: "#ef4444", text: "Rejected" },
+      REFUND_INITIATED: { bg: "#6366f1", text: "Refund Initiated" },
+      REFUNDED: { bg: "#0ea5e9", text: "Refunded" },
     };
     const style = map[s] ?? { bg: "#6b7280", text: s };
     return (
@@ -215,7 +233,7 @@ export default function EvaluatorClaimsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4" style={{ color: "var(--color-muted-foreground)" }} />
-          {(["ALL", "PENDING", "APPROVED", "REJECTED"] as StatusFilter[]).map(s => (
+          {filterOptions.map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition"
               style={{
@@ -565,14 +583,53 @@ export default function EvaluatorClaimsPage() {
                           </div>
                         )}
 
-                        {claim.status !== "PENDING" && (
+                        {claim.status === "APPROVED" && (
+                          <div className="flex flex-col gap-2 pt-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4" style={{ color: "#22c55e" }} />
+                              <p className="text-sm font-medium" style={{ color: "#16a34a" }}>
+                                This claim has been approved.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleInitiateRefund(claim.id)}
+                              disabled={!!actionLoading[claim.id]}
+                              className="flex items-center justify-center gap-2 rounded-lg py-2 px-4 text-sm font-medium text-white transition disabled:opacity-50 w-full"
+                              style={{ backgroundColor: "#6366f1" }}>
+                              {actionLoading[claim.id] ? (
+                                <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                              ) : (
+                                <><RefreshCw className="h-4 w-4" /> Start Refund Process</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {claim.status === "REFUND_INITIATED" && (
+                          <div className="flex items-center gap-2 pt-2 rounded-lg p-3"
+                            style={{ backgroundColor: "color-mix(in srgb, #6366f1 10%, transparent)" }}>
+                            <RefreshCw className="h-4 w-4" style={{ color: "#6366f1" }} />
+                            <p className="text-sm font-medium" style={{ color: "#6366f1" }}>
+                              Refund process initiated — awaiting Refund Office action.
+                            </p>
+                          </div>
+                        )}
+
+                        {claim.status === "REFUNDED" && (
+                          <div className="flex items-center gap-2 pt-2 rounded-lg p-3"
+                            style={{ backgroundColor: "color-mix(in srgb, #0ea5e9 10%, transparent)" }}>
+                            <CheckCircle className="h-4 w-4" style={{ color: "#0ea5e9" }} />
+                            <p className="text-sm font-medium" style={{ color: "#0ea5e9" }}>
+                              Refund completed — provider has been reimbursed.
+                            </p>
+                          </div>
+                        )}
+
+                        {claim.status === "REJECTED" && (
                           <div className="flex items-center gap-2 pt-2">
-                            {claim.status === "APPROVED"
-                              ? <CheckCircle className="h-4 w-4" style={{ color: "#22c55e" }} />
-                              : <XCircle className="h-4 w-4" style={{ color: "#ef4444" }} />}
-                            <p className="text-sm font-medium"
-                              style={{ color: claim.status === "APPROVED" ? "#16a34a" : "#dc2626" }}>
-                              This claim has been {claim.status.toLowerCase()}.
+                            <XCircle className="h-4 w-4" style={{ color: "#ef4444" }} />
+                            <p className="text-sm font-medium" style={{ color: "#dc2626" }}>
+                              This claim has been rejected.
                             </p>
                           </div>
                         )}

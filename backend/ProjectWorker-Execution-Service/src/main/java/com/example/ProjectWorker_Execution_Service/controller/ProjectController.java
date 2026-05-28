@@ -100,4 +100,11 @@ public class ProjectController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(projectService.assignWorker(id, workerId, principal));
     }
+
+    @PostMapping("/{id}/repost")
+    public ResponseEntity<ProjectResponse> repostProject(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(projectService.repostProject(id, principal));
+    }
 }

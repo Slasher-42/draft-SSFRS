@@ -14,6 +14,7 @@ import {
   type BankAccountRequest,
 } from "@/lib/accountService";
 import { projectService, type ProjectResponse } from "@/lib/projectService";
+import { claimService, type ClaimResponse } from "@/lib/claimService";
 
 const maskAccount = (num: string) =>
   num.length <= 4 ? num : "•••• " + num.slice(-4);
@@ -24,6 +25,7 @@ export default function ProviderAccountPage() {
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [allProjects, setAllProjects] = useState<ProjectResponse[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([]);
+  const [myClaims, setMyClaims] = useState<ClaimResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   // deposit state
@@ -45,10 +47,12 @@ export default function ProviderAccountPage() {
       accountService.getAccount(),
       projectService.getMyProjects(),
       accountService.getBankAccounts(),
-    ]).then(([acc, projs, banks]) => {
+      claimService.getMyClaims(),
+    ]).then(([acc, projs, banks, claims]) => {
       setAccount(acc);
       setAllProjects(projs);
       setBankAccounts(banks);
+      setMyClaims(claims);
       const def = banks.find(b => b.defaultAccount);
       if (def) setSelectedBankAccountId(def.id);
     }).catch(() => toast.error("Failed to load account."))
@@ -56,9 +60,13 @@ export default function ProviderAccountPage() {
   }, []);
 
   const projects = allProjects.filter(p => p.status === "OPEN" && !p.funded);
-  const totalDeposited = allProjects
+  const deposited = allProjects
     .filter(p => p.status === "OPEN" && p.funded)
     .reduce((sum, p) => sum + p.budget, 0);
+  const refunded = myClaims
+    .filter(c => c.status === "REFUNDED")
+    .reduce((sum, c) => sum + (c.projectBudget ?? 0), 0);
+  const totalDeposited = deposited + refunded;
   const lockedTotal = allProjects
     .filter(p => p.status === "ASSIGNED")
     .reduce((sum, p) => sum + p.budget, 0);
@@ -209,6 +217,7 @@ export default function ProviderAccountPage() {
             </p>
           </div>
         </div>
+
 
       </motion.div>
 

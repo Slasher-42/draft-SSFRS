@@ -196,9 +196,10 @@ public class NotificationConsumer {
             @SuppressWarnings("unchecked")
             Map<String, String> data = MAPPER.readValue(payload, Map.class);
 
-            String claimId  = data.get("claimId");
-            String workerId = data.get("workerId");
-            String decision = data.get("decision");
+            String claimId    = data.get("claimId");
+            String workerId   = data.get("workerId");
+            String providerId = data.get("providerId");
+            String decision   = data.get("decision");
 
             if (workerId == null || claimId == null || decision == null) {
                 log.warn("[Notification] Incomplete claim-decision payload, skipping: {}", payload);
@@ -207,26 +208,116 @@ public class NotificationConsumer {
             }
 
             boolean approved = "APPROVED".equalsIgnoreCase(decision);
-            String type    = approved ? "CLAIM_APPROVED_AGAINST_WORKER" : "CLAIM_REJECTED_AGAINST_WORKER";
-            String title   = approved ? "Claim Approved Against You" : "Claim Against You Was Rejected";
-            String message = approved
-                    ? "A claim filed against you has been approved by an evaluator. Please check your claims section for details."
-                    : "A claim filed against you has been reviewed and the evaluator decided to reject it.";
-
             String notifData = MAPPER.writeValueAsString(Map.of("claimId", claimId));
 
+            // Notify the worker
             notificationRepository.save(Notification.builder()
                     .recipientId(workerId)
-                    .type(type)
-                    .title(title)
-                    .message(message)
+                    .type(approved ? "CLAIM_APPROVED_AGAINST_WORKER" : "CLAIM_REJECTED_AGAINST_WORKER")
+                    .title(approved ? "Claim Approved Against You" : "Claim Against You Was Rejected")
+                    .message(approved
+                            ? "A claim filed against you has been approved by an evaluator. Please check your claims section for details."
+                            : "A claim filed against you has been reviewed and the evaluator decided to reject it.")
+                    .data(notifData)
+                    .build());
+
+            // Notify the provider who filed the claim
+            if (providerId != null) {
+                notificationRepository.save(Notification.builder()
+                        .recipientId(providerId)
+                        .type(approved ? "CLAIM_APPROVED_FOR_PROVIDER" : "CLAIM_REJECTED_FOR_PROVIDER")
+                        .title(approved ? "Your Claim Was Approved" : "Your Claim Was Rejected")
+                        .message(approved
+                                ? "Your claim has been reviewed and approved by an evaluator. Please check your claims section for details."
+                                : "Your claim has been reviewed and rejected by an evaluator. Please check your claims section for details.")
+                        .data(notifData)
+                        .build());
+            }
+
+            ack.acknowledge();
+            log.info("[Notification] Saved claim-decision notifications for worker={} provider={} decision={}", workerId, providerId, decision);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to process claim-decision: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    @KafkaListener(topics = "refund-initiated", groupId = "notification-service-group",
+                   containerFactory = "kafkaListenerContainerFactory")
+    public void onRefundInitiated(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String payload = record.value();
+        log.info("[Notification] refund-initiated: {}", payload);
+
+        if (payload == null || !payload.trim().startsWith("{")) {
+            ack.acknowledge();
+            return;
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> data = MAPPER.readValue(payload, Map.class);
+            String claimId = data.get("claimId");
+
+            String notifData = MAPPER.writeValueAsString(Map.of("claimId", claimId != null ? claimId : ""));
+
+            // Broadcast to all REFUND_OFFICE users
+            notificationRepository.save(Notification.builder()
+                    .recipientId("REFUND_OFFICE")
+                    .type("REFUND_PROCESS_REQUESTED")
+                    .title("New Refund Request")
+                    .message("An approved claim has been submitted for refund processing. Please review and process the refund.")
                     .data(notifData)
                     .build());
 
             ack.acknowledge();
-            log.info("[Notification] Saved claim-decision notification for worker={} decision={}", workerId, decision);
+            log.info("[Notification] Saved refund-initiated broadcast for REFUND_OFFICE, claimId={}", claimId);
         } catch (Exception e) {
-            log.error("[Notification] Failed to process claim-decision: {}", e.getMessage(), e);
+            log.error("[Notification] Failed to process refund-initiated: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    @KafkaListener(topics = "refund-completed", groupId = "notification-service-group",
+                   containerFactory = "kafkaListenerContainerFactory")
+    public void onRefundCompleted(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String payload = record.value();
+        log.info("[Notification] refund-completed: {}", payload);
+
+        if (payload == null || !payload.trim().startsWith("{")) {
+            ack.acknowledge();
+            return;
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> data = MAPPER.readValue(payload, Map.class);
+            String claimId   = data.get("claimId");
+            String providerId = data.get("providerId");
+            String amount    = data.get("amount");
+
+            if (providerId == null || claimId == null) {
+                ack.acknowledge();
+                return;
+            }
+
+            String notifData = MAPPER.writeValueAsString(Map.of(
+                    "claimId", claimId,
+                    "amount", amount != null ? amount : ""
+            ));
+
+            notificationRepository.save(Notification.builder()
+                    .recipientId(providerId)
+                    .type("REFUND_COMPLETED")
+                    .title("Refund Processed Successfully")
+                    .message("Your refund of " + (amount != null ? amount : "the project budget") +
+                             " has been processed and credited back to your account.")
+                    .data(notifData)
+                    .build());
+
+            ack.acknowledge();
+            log.info("[Notification] Saved refund-completed notification for provider={}", providerId);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to process refund-completed: {}", e.getMessage(), e);
         }
     }
 }

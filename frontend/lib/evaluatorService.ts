@@ -6,7 +6,7 @@ export interface EvaluatorClaimResponse {
   providerId: string;
   workerId: string;
   description: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "REFUND_INITIATED" | "REFUNDED";
   proofDocumentUrls: string[];
   ghostProjectImageUrls: string[];
   messageEvidence: string | null;
@@ -49,6 +49,11 @@ export const evaluatorService = {
 
   async rejectClaim(id: string): Promise<EvaluatorClaimResponse> {
     const res = await evaluationApi.patch(`/api/evaluator/claims/${id}/reject`);
+    return res.data;
+  },
+
+  async initiateRefund(id: string): Promise<EvaluatorClaimResponse> {
+    const res = await evaluationApi.patch(`/api/evaluator/claims/${id}/initiate-refund`);
     return res.data;
   },
 };

@@ -12,7 +12,9 @@ import com.example.ProjectWorker_Execution_Service.model.ProjectCategory;
 import com.example.ProjectWorker_Execution_Service.model.ProjectImage;
 import com.example.ProjectWorker_Execution_Service.model.ProjectStatus;
 import com.example.ProjectWorker_Execution_Service.model.WorkerCv;
+import com.example.ProjectWorker_Execution_Service.model.ClaimStatus;
 import com.example.ProjectWorker_Execution_Service.repository.AccountRepository;
+import com.example.ProjectWorker_Execution_Service.repository.ClaimRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ProjectImageRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ProjectRepository;
 import com.example.ProjectWorker_Execution_Service.repository.WorkerCvRepository;
@@ -47,6 +49,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectImageRepository projectImageRepository;
     private final WorkerCvRepository workerCvRepository;
     private final AccountRepository accountRepository;
+    private final ClaimRepository claimRepository;
     private final S3UploadService s3UploadService;
     private final ExecutionEventPublisher eventPublisher;
 
@@ -385,6 +388,34 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(ProjectStatus.ASSIGNED);
         projectRepository.save(project);
         eventPublisher.publishWorkerAssigned(projectId, workerId, project.getProviderId(), project.getTitle());
+        return toResponse(project);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "projects-by-id", key = "#projectId"),
+            @CacheEvict(value = "projects-my", allEntries = true),
+            @CacheEvict(value = "projects-all", allEntries = true),
+            @CacheEvict(value = "projects-open", allEntries = true)
+    })
+    public ProjectResponse repostProject(String projectId, UserPrincipal principal) {
+        if (!"PROVIDER".equals(principal.getRole())) {
+            throw new ForbiddenException("Only project providers can repost projects.");
+        }
+        Project project = findAndVerifyOwner(projectId, principal);
+        if (project.getStatus() != ProjectStatus.FAILED) {
+            throw new IllegalArgumentException("Only failed projects can be reposted.");
+        }
+        claimRepository.findByProjectId(projectId).ifPresent(claim -> {
+            if (claim.getStatus() != ClaimStatus.REFUNDED) {
+                throw new IllegalArgumentException("Project can only be reposted after its claim has been refunded.");
+            }
+        });
+        project.setStatus(ProjectStatus.OPEN);
+        project.setFunded(false);
+        project.setAssignedWorkerId(null);
+        projectRepository.save(project);
         return toResponse(project);
     }
 

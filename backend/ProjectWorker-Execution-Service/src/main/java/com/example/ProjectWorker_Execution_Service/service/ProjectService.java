@@ -35,4 +35,6 @@ public interface ProjectService {
     List<RankedWorkerResponse> getRankedCandidates(String projectId, UserPrincipal principal);
 
     ProjectResponse assignWorker(String projectId, String workerId, UserPrincipal principal);
+
+    ProjectResponse repostProject(String projectId, UserPrincipal principal);
 }

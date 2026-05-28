@@ -57,6 +57,14 @@ public class ExecutionEventPublisher {
         send("worker-claim-response-submitted", claimId + ":" + workerId);
     }
 
+    public void publishRefundCompleted(String claimId, String providerId, String amount) {
+        send("refund-completed", toJson(Map.of(
+                "claimId", claimId,
+                "providerId", providerId,
+                "amount", amount
+        )));
+    }
+
     private void send(String topic, String payload) {
         try {
             kafkaTemplate.send(topic, payload).whenComplete((result, ex) -> {

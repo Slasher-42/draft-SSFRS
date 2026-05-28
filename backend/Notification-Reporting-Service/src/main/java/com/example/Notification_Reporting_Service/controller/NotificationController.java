@@ -38,6 +38,13 @@ public class NotificationController {
             result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         }
 
+        if ("REFUND_OFFICE".equals(principal.getRole())) {
+            List<Notification> refundBroadcasts = notificationRepository
+                    .findByRecipientIdOrderByCreatedAtDesc("REFUND_OFFICE");
+            result.addAll(refundBroadcasts.stream().map(this::toResponse).collect(Collectors.toList()));
+            result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        }
+
         return ResponseEntity.ok(result);
     }
 
@@ -47,6 +54,9 @@ public class NotificationController {
         long count = notificationRepository.countByRecipientIdAndReadFalse(principal.getUserId());
         if ("ADMIN".equals(principal.getRole())) {
             count += notificationRepository.countByRecipientIdAndReadFalse("ADMIN");
+        }
+        if ("REFUND_OFFICE".equals(principal.getRole())) {
+            count += notificationRepository.countByRecipientIdAndReadFalse("REFUND_OFFICE");
         }
         return ResponseEntity.ok(Map.of("count", count));
     }
@@ -59,7 +69,8 @@ public class NotificationController {
         notificationRepository.findById(id).ifPresent(n -> {
             boolean isOwner = n.getRecipientId().equals(principal.getUserId());
             boolean isAdminBroadcast = "ADMIN".equals(n.getRecipientId()) && "ADMIN".equals(principal.getRole());
-            if (isOwner || isAdminBroadcast) {
+            boolean isRefundBroadcast = "REFUND_OFFICE".equals(n.getRecipientId()) && "REFUND_OFFICE".equals(principal.getRole());
+            if (isOwner || isAdminBroadcast || isRefundBroadcast) {
                 n.setRead(true);
                 notificationRepository.save(n);
             }
@@ -74,6 +85,9 @@ public class NotificationController {
         notificationRepository.markAllReadByRecipientId(principal.getUserId());
         if ("ADMIN".equals(principal.getRole())) {
             notificationRepository.markAllReadByRecipientId("ADMIN");
+        }
+        if ("REFUND_OFFICE".equals(principal.getRole())) {
+            notificationRepository.markAllReadByRecipientId("REFUND_OFFICE");
         }
         return ResponseEntity.noContent().build();
     }

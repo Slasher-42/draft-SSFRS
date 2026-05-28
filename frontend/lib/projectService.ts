@@ -135,4 +135,9 @@ export const projectService = {
     );
     return res.data;
   },
+
+  async repostProject(id: string): Promise<ProjectResponse> {
+    const res = await executionApi.post<ProjectResponse>(`/api/projects/${id}/repost`);
+    return res.data;
+  },
 };

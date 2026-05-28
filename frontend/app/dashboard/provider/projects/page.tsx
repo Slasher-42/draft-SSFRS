@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Briefcase, Plus, Calendar, DollarSign, ChevronRight, Image } from "lucide-react";
+import { Briefcase, Plus, Calendar, DollarSign, ChevronRight, Image, RotateCcw } from "lucide-react";
 import { toast } from "react-toastify";
 import { projectService, ProjectResponse } from "@/lib/projectService";
+import { claimService, ClaimResponse } from "@/lib/claimService";
 
 const statusColor: Record<string, string> = {
   OPEN: "#22c55e",
@@ -16,15 +17,42 @@ const statusColor: Record<string, string> = {
 
 export default function ProviderProjectsPage() {
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [refundedProjectIds, setRefundedProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [reposting, setReposting] = useState<string | null>(null);
 
   useEffect(() => {
-    projectService
-      .getMyProjects()
-      .then(setProjects)
+    Promise.all([projectService.getMyProjects(), claimService.getMyClaims()])
+      .then(([projs, claims]) => {
+        setProjects(projs);
+        const refunded = new Set(
+          claims
+            .filter((c: ClaimResponse) => c.status === "REFUNDED")
+            .map((c: ClaimResponse) => c.projectId)
+        );
+        setRefundedProjectIds(refunded);
+      })
       .catch(() => toast.error("Failed to load projects."))
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleRepost(projectId: string) {
+    setReposting(projectId);
+    try {
+      const updated = await projectService.repostProject(projectId);
+      setProjects((prev) => prev.map((p) => (p.id === projectId ? updated : p)));
+      setRefundedProjectIds((prev) => {
+        const next = new Set(prev);
+        next.delete(projectId);
+        return next;
+      });
+      toast.success("Project reposted! Admin can now assign a new worker.");
+    } catch {
+      toast.error("Failed to repost project.");
+    } finally {
+      setReposting(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -72,20 +100,48 @@ export default function ProviderProjectsPage() {
         <div className="space-y-3">
           {projects.map((p, i) => {
             const thumb = p.images?.[0];
+            const isRefunded = p.status === "FAILED" && refundedProjectIds.has(p.id);
             return (
               <motion.div
                 key={p.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
+                className="rounded-xl border overflow-hidden"
+                style={{
+                  backgroundColor: "var(--color-card)",
+                  borderColor: isRefunded ? "#10b981" : "var(--color-border)",
+                }}
               >
+                {/* Refunded banner */}
+                {isRefunded && (
+                  <div
+                    className="flex items-center justify-between px-4 py-2 text-xs font-medium"
+                    style={{ backgroundColor: "#10b98115", borderBottom: "1px solid #10b98130" }}
+                  >
+                    <span style={{ color: "#10b981" }}>
+                      Refund received — this project is ready to be reposted
+                    </span>
+                    <button
+                      onClick={() => handleRepost(p.id)}
+                      disabled={reposting === p.id}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-60"
+                      style={{ backgroundColor: "#10b981" }}
+                    >
+                      {reposting === p.id ? (
+                        <span className="h-3 w-3 rounded-full border-2 border-t-transparent animate-spin border-white" />
+                      ) : (
+                        <RotateCcw className="h-3 w-3" />
+                      )}
+                      Repost Project
+                    </button>
+                  </div>
+                )}
+
+                {/* Main card (navigates to detail) */}
                 <Link
                   href={`/dashboard/provider/projects/${p.id}`}
-                  className="flex items-center gap-4 rounded-xl border p-4 transition hover:shadow-sm"
-                  style={{
-                    backgroundColor: "var(--color-card)",
-                    borderColor: "var(--color-border)",
-                  }}
+                  className="flex items-center gap-4 p-4 transition hover:shadow-sm"
                 >
                   {/* Thumbnail */}
                   <div
@@ -128,6 +184,14 @@ export default function ProviderProjectsPage() {
                       >
                         {p.status}
                       </span>
+                      {isRefunded && (
+                        <span
+                          className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={{ backgroundColor: "#10b98120", color: "#10b981" }}
+                        >
+                          REFUNDED
+                        </span>
+                      )}
                     </div>
                     <p
                       className="text-xs truncate"

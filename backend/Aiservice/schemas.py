@@ -133,3 +133,16 @@ class ImageVerificationResponse(BaseModel):
     location_indicators: str
     analysis: str
     reasoning: str
+
+
+class ValidateApologyRequest(BaseModel):
+    claim_id: str
+    message_evidence: Optional[str] = None  # JSON string of message array
+
+
+class ApologyValidationResponse(BaseModel):
+    claim_id: str
+    has_apology: bool
+    confidence: str               # HIGH | MEDIUM | LOW
+    reasoning: str
+    apology_excerpt: Optional[str] = None

@@ -6,7 +6,7 @@ export interface ClaimResponse {
   providerId: string;
   workerId: string;
   description: string;
-  status: "PENDING" | "UNDER_REVIEW" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "REFUND_INITIATED" | "REFUNDED";
   proofDocumentUrls: string[];
   ghostProjectImageUrls: string[];
   messageEvidence: string | null;
@@ -16,6 +16,7 @@ export interface ClaimResponse {
   extractedPhotoTimestamp: string | null;
   workerResponse: string | null;
   aiMediationReport: string | null;
+  projectBudget: number | null;
   createdAt: string;
   updatedAt: string;
 }
