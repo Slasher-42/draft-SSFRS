@@ -9,6 +9,7 @@ import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.exception.ResourceNotFoundException;
 import com.example.ProjectWorker_Execution_Service.kafka.ExecutionEventPublisher;
 import com.example.ProjectWorker_Execution_Service.model.Claim;
+import com.example.ProjectWorker_Execution_Service.model.ClaimStatus;
 import com.example.ProjectWorker_Execution_Service.model.Project;
 import com.example.ProjectWorker_Execution_Service.model.ProjectStatus;
 import com.example.ProjectWorker_Execution_Service.repository.ClaimRepository;
@@ -141,6 +142,109 @@ public class ClaimServiceImpl implements ClaimService {
         claimRepository.save(claim);
         eventPublisher.publishClaimFiled(claim.getId(), projectId, project.getAssignedWorkerId());
 
+        return toResponse(claim);
+    }
+
+    @Override
+    @Transactional
+    public void deleteClaim(String claimId, UserPrincipal principal) {
+        Claim claim = findClaim(claimId);
+        if (!claim.getProviderId().equals(principal.getUserId())) {
+            throw new ForbiddenException("You did not file this claim.");
+        }
+        if (claim.getStatus() != ClaimStatus.PENDING) {
+            throw new IllegalArgumentException("Only pending claims can be deleted.");
+        }
+        claimRepository.delete(claim);
+    }
+
+    @Override
+    @Transactional
+    public ClaimResponse updateClaim(String claimId, String description,
+                                      List<MultipartFile> proofDocuments,
+                                      List<MultipartFile> ghostProjectImages,
+                                      String messageEvidenceJson,
+                                      UserPrincipal principal) {
+        Claim claim = findClaim(claimId);
+
+        if (!claim.getProviderId().equals(principal.getUserId())) {
+            throw new ForbiddenException("You did not file this claim.");
+        }
+        if (claim.getStatus() != ClaimStatus.PENDING) {
+            throw new IllegalArgumentException("Only pending claims can be edited.");
+        }
+
+        claim.setDescription(description);
+        if (messageEvidenceJson != null) {
+            claim.setMessageEvidenceJson(messageEvidenceJson);
+        }
+
+        boolean hasNewDocs = proofDocuments != null && proofDocuments.stream().anyMatch(f -> !f.isEmpty());
+        if (hasNewDocs) {
+            List<String> docKeys = new ArrayList<>();
+            String geotagKey = null;
+            Double lat = null;
+            Double lon = null;
+            String photoTimestamp = null;
+
+            for (MultipartFile file : proofDocuments) {
+                if (file.isEmpty()) continue;
+                try {
+                    String key = s3UploadService.uploadFile(file, "claim-documents");
+                    docKeys.add(key);
+                    String ct = file.getContentType();
+                    if (ct != null && (ct.startsWith("image/jpeg") || ct.startsWith("image/jpg"))) {
+                        GpsResult gps = extractGps(file.getBytes());
+                        if (gps != null && geotagKey == null) {
+                            geotagKey = key;
+                            lat = gps.lat;
+                            lon = gps.lon;
+                            photoTimestamp = gps.timestamp;
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to upload proof document.");
+                }
+            }
+            claim.getProofDocumentKeys().clear();
+            claim.getProofDocumentKeys().addAll(docKeys);
+            if (geotagKey != null) {
+                claim.setGeotagPhotoKey(geotagKey);
+                claim.setExtractedLat(lat);
+                claim.setExtractedLon(lon);
+                claim.setExtractedPhotoTimestamp(photoTimestamp);
+            }
+        }
+
+        boolean hasNewGhosts = ghostProjectImages != null && ghostProjectImages.stream().anyMatch(f -> !f.isEmpty());
+        if (hasNewGhosts) {
+            List<String> ghostKeys = new ArrayList<>();
+            for (MultipartFile file : ghostProjectImages) {
+                if (file.isEmpty()) continue;
+                try {
+                    String key = s3UploadService.uploadFile(file, "claim-ghost-images");
+                    ghostKeys.add(key);
+                    if (claim.getGeotagPhotoKey() == null) {
+                        String ct = file.getContentType();
+                        if (ct != null && (ct.startsWith("image/jpeg") || ct.startsWith("image/jpg"))) {
+                            GpsResult gps = extractGps(file.getBytes());
+                            if (gps != null) {
+                                claim.setGeotagPhotoKey(key);
+                                claim.setExtractedLat(gps.lat);
+                                claim.setExtractedLon(gps.lon);
+                                claim.setExtractedPhotoTimestamp(gps.timestamp);
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to upload ghost project image.");
+                }
+            }
+            claim.getGhostProjectImageKeys().clear();
+            claim.getGhostProjectImageKeys().addAll(ghostKeys);
+        }
+
+        claimRepository.save(claim);
         return toResponse(claim);
     }
 

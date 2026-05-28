@@ -58,6 +58,26 @@ public class ClaimController {
         return ResponseEntity.ok(claimService.getClaimById(id, principal));
     }
 
+    @PutMapping(path = "/api/claims/{id}", consumes = "multipart/form-data")
+    public ResponseEntity<ClaimResponse> updateClaim(
+            @PathVariable String id,
+            @RequestParam("description") String description,
+            @RequestParam(value = "proofDocuments", required = false) List<MultipartFile> proofDocuments,
+            @RequestParam(value = "ghostProjectImages", required = false) List<MultipartFile> ghostProjectImages,
+            @RequestParam(value = "messageEvidenceJson", required = false) String messageEvidenceJson,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(
+                claimService.updateClaim(id, description, proofDocuments, ghostProjectImages, messageEvidenceJson, principal));
+    }
+
+    @DeleteMapping("/api/claims/{id}")
+    public ResponseEntity<Void> deleteClaim(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        claimService.deleteClaim(id, principal);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/api/claims/{id}/respond")
     public ResponseEntity<ClaimResponse> respondToClaim(
             @PathVariable String id,

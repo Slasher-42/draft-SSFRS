@@ -12,6 +12,7 @@ import { toast } from "react-toastify";
 import { claimService, type MessageEvidenceItem } from "@/lib/claimService";
 import { projectService, type ProjectResponse } from "@/lib/projectService";
 
+
 const schema = z.object({
   description: z.string().min(20, "Please provide a detailed description (at least 20 characters)"),
 });
@@ -336,8 +337,9 @@ export default function FileClaimPage() {
                     >
                       <div className="px-4 pb-4 pt-3 space-y-3" style={{ borderTop: "1px solid var(--color-border)" }}>
                         <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                          Upload photos of the wrongly-constructed place. GPS/EXIF data will be extracted for geolocation validation by the evaluator.
+                          Upload photos of the wrongly-constructed place. The AI will automatically analyse the images to verify whether they match the project location.
                         </p>
+
                         <label className="flex items-center gap-2 cursor-pointer rounded-lg border-2 border-dashed p-4 transition"
                           style={{ borderColor: "#fca5a5" }}>
                           <Camera className="h-5 w-5" style={{ color: "#ef4444" }} />
@@ -353,11 +355,8 @@ export default function FileClaimPage() {
                             {ghostImages.map((f, i) => (
                               <div key={i} className="relative rounded-lg overflow-hidden border"
                                 style={{ borderColor: "var(--color-border)" }}>
-                                <img
-                                  src={URL.createObjectURL(f)}
-                                  alt=""
-                                  className="w-full h-24 object-cover"
-                                />
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={URL.createObjectURL(f)} alt="" className="w-full h-24 object-cover" />
                                 <button type="button" onClick={() => removeGhostImage(i)}
                                   className="absolute top-1 right-1 rounded-full p-0.5"
                                   style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>

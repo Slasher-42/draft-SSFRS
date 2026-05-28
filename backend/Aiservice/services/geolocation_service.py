@@ -1,7 +1,9 @@
 import json
+import re
 import httpx
 from models import GeolocationResult
 from sqlalchemy.orm import Session
+from groq_client import chat_vision
 
 
 def reverse_geocode(lat: float, lon: float) -> str:
@@ -83,6 +85,60 @@ def verify_geolocation(data: dict, db: Session) -> GeolocationResult:
     db.add(result)
     db.commit()
     db.refresh(result)
+    return result
+
+
+def verify_location_by_image(claim_id: str, image_urls: list, construction_location: str) -> dict:
+    prompt = f"""You are a forensic construction fraud investigator. Your job is to determine whether submitted photos genuinely match the claimed project location, or whether they are fraudulent (taken elsewhere).
+
+Claimed construction location: "{construction_location}"
+
+IMPORTANT: You must output exactly VERIFIED or MISMATCH — never "UNCERTAIN". When evidence is ambiguous, make a best-judgment call based on the balance of indicators and lean toward MISMATCH if there are red flags.
+
+Step 1 — Identify the expected region from the claimed location:
+Extract the country and city/region. For example "KN 3 Rd 5, Nyarugenge, Kigali, Rwanda" → country: Rwanda, city: Kigali, region: Central Africa (tropical highland).
+
+Step 2 — Examine every image for these regional signals:
+• VEGETATION: tropical/arid/temperate? Specific tree types (banana trees, eucalyptus, savanna, pine, etc.)?
+• CLIMATE INDICATORS: red laterite soil, dust, lush green hills, seasonal context?
+• ARCHITECTURE & BUILDING MATERIALS: brick type, wall colours, roof styles typical of the region?
+• ROAD MARKINGS & INFRASTRUCTURE: road surface, kerb style, drainage channels?
+• SIGNAGE: any text visible — what language/script? Consistent with claimed country?
+• SKY & LIGHT: sunlight angle and intensity consistent with the latitude?
+• VEHICLES: right-hand or left-hand drive? Vehicle brands common in the region?
+• SURROUNDING LANDSCAPE: urban/suburban/rural character consistent with claimed city?
+
+Step 3 — Make a DEFINITIVE verdict:
+• VERIFIED: The visual evidence (vegetation, soil, building style, climate, etc.) is broadly consistent with the claimed country and region. The construction activity is plausible for the described project. No clear contradicting indicators.
+• MISMATCH: The visual evidence clearly contradicts the claimed location — wrong climate zone, wrong vegetation, wrong architectural style, or clear evidence of a different country/region. OR the images show something completely unrelated to construction.
+
+Output ONLY this JSON, nothing else:
+{{
+  "location_status": "VERIFIED" or "MISMATCH",
+  "confidence": "HIGH" or "MEDIUM" or "LOW",
+  "what_is_visible": "1-2 sentences describing the construction site and surroundings visible in the images",
+  "location_indicators": "list the specific visual clues you found — vegetation, soil, architecture, signage, etc.",
+  "analysis": "explain how the regional signals in the images compare to the expected characteristics of {construction_location}",
+  "reasoning": "state your final verdict clearly — what confirms or contradicts the location claim"
+}}"""
+
+    raw = chat_vision(prompt, image_urls, temperature=0.1)
+    cleaned = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+    cleaned = re.sub(r"\s*```$", "", cleaned, flags=re.MULTILINE)
+
+    # Strip any text before the first { and after the last }
+    start = cleaned.find("{")
+    end = cleaned.rfind("}") + 1
+    if start != -1 and end > start:
+        cleaned = cleaned[start:end]
+
+    result = json.loads(cleaned.strip())
+
+    # Normalise — collapse any residual UNCERTAIN to MISMATCH
+    if result.get("location_status") not in ("VERIFIED", "MISMATCH"):
+        result["location_status"] = "MISMATCH"
+
+    result["claim_id"] = claim_id
     return result
 
 

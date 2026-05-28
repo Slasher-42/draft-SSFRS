@@ -2,7 +2,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas import VerifyGeolocationRequest, GeolocationResultResponse
+from schemas import VerifyGeolocationRequest, GeolocationResultResponse, VerifyImageLocationRequest, ImageVerificationResponse
 from services import geolocation_service
 from messaging.producer import publish_event
 
@@ -32,6 +32,19 @@ def verify_geolocation(request: VerifyGeolocationRequest, db: Session = Depends(
             flags=flags,
             summary=summary,
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/verify-image", response_model=ImageVerificationResponse)
+def verify_image_location(request: VerifyImageLocationRequest):
+    try:
+        result = geolocation_service.verify_location_by_image(
+            request.claim_id,
+            request.image_urls,
+            request.construction_location,
+        )
+        return ImageVerificationResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

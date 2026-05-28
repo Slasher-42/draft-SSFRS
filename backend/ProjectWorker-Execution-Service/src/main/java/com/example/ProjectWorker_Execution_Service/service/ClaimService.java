@@ -21,6 +21,14 @@ public interface ClaimService {
 
     ClaimResponse getClaimById(String claimId, UserPrincipal principal);
 
+    void deleteClaim(String claimId, UserPrincipal principal);
+
+    ClaimResponse updateClaim(String claimId, String description,
+                               List<MultipartFile> proofDocuments,
+                               List<MultipartFile> ghostProjectImages,
+                               String messageEvidenceJson,
+                               UserPrincipal principal);
+
     ClaimResponse respondToClaim(String claimId, WorkerClaimResponseRequest request,
                                   UserPrincipal principal);
 

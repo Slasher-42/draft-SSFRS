@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { evaluatorService, type EvaluatorClaimResponse, type MessageEvidenceItem } from "@/lib/evaluatorService";
+import { aiService, type ImageVerificationResult } from "@/lib/aiService";
 
 type StatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 
@@ -51,6 +52,8 @@ export default function EvaluatorClaimsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [geoResults, setGeoResults] = useState<Record<string, GeoValidationResult>>({});
   const [geoLoading, setGeoLoading] = useState<Record<string, boolean>>({});
+  const [aiResults, setAiResults] = useState<Record<string, ImageVerificationResult>>({});
+  const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [msgExpanded, setMsgExpanded] = useState<Record<string, boolean>>({});
 
@@ -80,17 +83,7 @@ export default function EvaluatorClaimsPage() {
       return;
     }
 
-    if (!claim.extractedLat || !claim.extractedLon) {
-      setGeoResults(prev => ({
-        ...prev,
-        [claim.id]: {
-          imageCoords: null, projectCoords: null, distanceKm: null,
-          projectAddress: claim.constructionLocation,
-          valid: null, error: "No GPS data found in the uploaded ghost project images.",
-        },
-      }));
-      return;
-    }
+    if (!claim.extractedLat || !claim.extractedLon) return;
 
     setGeoLoading(prev => ({ ...prev, [claim.id]: true }));
     try {
@@ -132,6 +125,23 @@ export default function EvaluatorClaimsPage() {
       }));
     } finally {
       setGeoLoading(prev => ({ ...prev, [claim.id]: false }));
+    }
+  };
+
+  const handleAiVerify = async (claim: EvaluatorClaimResponse) => {
+    if (!claim.constructionLocation || claim.ghostProjectImageUrls.length === 0) return;
+    setAiLoading(prev => ({ ...prev, [claim.id]: true }));
+    try {
+      const result = await aiService.verifyImageLocation(
+        claim.id,
+        claim.ghostProjectImageUrls,
+        claim.constructionLocation
+      );
+      setAiResults(prev => ({ ...prev, [claim.id]: result }));
+    } catch {
+      toast.error("AI image analysis failed. Try again.");
+    } finally {
+      setAiLoading(prev => ({ ...prev, [claim.id]: false }));
     }
   };
 
@@ -355,18 +365,20 @@ export default function EvaluatorClaimsPage() {
                                   Ghost Project Images ({claim.ghostProjectImageUrls.length})
                                 </p>
                               </div>
-                              <button
-                                onClick={() => handleValidate(claim)}
-                                disabled={geoLoading[claim.id]}
-                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition disabled:opacity-50"
-                                style={{ backgroundColor: "#ef4444" }}>
-                                {geoLoading[claim.id] ? (
-                                  <>
-                                    <span className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                                    Validating…
-                                  </>
-                                ) : "Validate Location"}
-                              </button>
+                              {claim.extractedLat && claim.extractedLon && (
+                                <button
+                                  onClick={() => handleValidate(claim)}
+                                  disabled={geoLoading[claim.id]}
+                                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition disabled:opacity-50"
+                                  style={{ backgroundColor: "#ef4444" }}>
+                                  {geoLoading[claim.id] ? (
+                                    <>
+                                      <span className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                      Validating…
+                                    </>
+                                  ) : "Validate Location"}
+                                </button>
+                              )}
                             </div>
 
                             <div className="grid grid-cols-3 gap-2">
@@ -379,11 +391,104 @@ export default function EvaluatorClaimsPage() {
                               ))}
                             </div>
 
-                            {geo && (
+                            {/* No GPS — AI vision analysis (primary verification method) */}
+                            {!claim.extractedLat && !claim.extractedLon && (
+                              <div className="space-y-3">
+                                <div className="rounded-xl border p-4"
+                                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-background)" }}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-xs font-semibold" style={{ color: "var(--color-foreground)" }}>
+                                        AI Location Analysis
+                                      </p>
+                                      <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+                                        AI analyses visual indicators (vegetation, architecture, terrain, signage) to confirm or reject the claimed region.
+                                      </p>
+                                      <p className="text-xs mt-1">
+                                        Expected: <strong style={{ color: "var(--color-foreground)" }}>{claim.constructionLocation}</strong>
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleAiVerify(claim)}
+                                      disabled={aiLoading[claim.id]}
+                                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white flex-shrink-0 transition disabled:opacity-50"
+                                      style={{ backgroundColor: "#7c3aed" }}>
+                                      {aiLoading[claim.id] ? (
+                                        <><span className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" /> Analysing…</>
+                                      ) : aiResults[claim.id] ? "Re-analyse" : "Analyse Images"}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* AI result */}
+                                {aiResults[claim.id] && (() => {
+                                  const ai = aiResults[claim.id];
+                                  const isVerified = ai.location_status === "VERIFIED";
+                                  const statusColor = isVerified ? "#22c55e" : "#ef4444";
+                                  const statusBg = isVerified
+                                    ? "color-mix(in srgb, #22c55e 8%, transparent)"
+                                    : "color-mix(in srgb, #ef4444 8%, transparent)";
+                                  return (
+                                    <div className="rounded-xl border p-4 space-y-3"
+                                      style={{ borderColor: statusColor, backgroundColor: statusBg }}>
+                                      <div className="flex items-center justify-between flex-wrap gap-2">
+                                        <div className="flex items-center gap-2">
+                                          {isVerified
+                                            ? <CheckCircle className="h-5 w-5" style={{ color: "#22c55e" }} />
+                                            : <XCircle className="h-5 w-5" style={{ color: "#ef4444" }} />}
+                                          <div>
+                                            <p className="text-sm font-bold" style={{ color: statusColor }}>
+                                              {isVerified ? "Images Consistent with Claimed Location" : "Location Mismatch — Images Do Not Match"}
+                                            </p>
+                                            <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+                                              {isVerified
+                                                ? "Visual indicators are consistent with the claimed region."
+                                                : "Visual indicators contradict the claimed location."}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                          style={{ backgroundColor: "var(--color-neutral-100)", color: "var(--color-muted-foreground)" }}>
+                                          Confidence: {ai.confidence}
+                                        </span>
+                                      </div>
+
+                                      <div className="space-y-2 text-xs border-t pt-3"
+                                        style={{ borderColor: statusColor + "40" }}>
+                                        <div>
+                                          <p className="font-semibold mb-0.5" style={{ color: "var(--color-foreground)" }}>What is visible</p>
+                                          <p style={{ color: "var(--color-muted-foreground)" }}>{ai.what_is_visible}</p>
+                                        </div>
+                                        {ai.location_indicators && (
+                                          <div>
+                                            <p className="font-semibold mb-0.5" style={{ color: "var(--color-foreground)" }}>Location indicators found</p>
+                                            <p style={{ color: "var(--color-muted-foreground)" }}>{ai.location_indicators}</p>
+                                          </div>
+                                        )}
+                                        <div>
+                                          <p className="font-semibold mb-0.5" style={{ color: "var(--color-foreground)" }}>Analysis</p>
+                                          <p style={{ color: "var(--color-muted-foreground)" }}>{ai.analysis}</p>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold mb-0.5" style={{ color: "var(--color-foreground)" }}>Reasoning</p>
+                                          <p style={{ color: "var(--color-muted-foreground)" }}>{ai.reasoning}</p>
+                                        </div>
+                                      </div>
+
+                                      <p className="text-[10px]" style={{ color: "var(--color-muted-foreground)" }}>
+                                        AI verifies regional visual consistency — not exact street address. Use with other evidence.
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+
+                            {/* GPS validation result (only shown after clicking Validate Location) */}
+                            {geo && geo.error !== "NO_GPS" && (
                               <div className="rounded-xl border p-4 space-y-2"
                                 style={{
-                                  borderColor: geo.error ? "var(--color-border)"
-                                    : geo.valid ? "#22c55e" : "#ef4444",
+                                  borderColor: geo.error ? "var(--color-border)" : geo.valid ? "#22c55e" : "#ef4444",
                                   backgroundColor: geo.error ? "var(--color-background)"
                                     : geo.valid
                                       ? "color-mix(in srgb, #22c55e 8%, transparent)"
@@ -407,31 +512,24 @@ export default function EvaluatorClaimsPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 text-xs">
                                       <div>
-                                        <p className="font-medium mb-0.5" style={{ color: "var(--color-foreground)" }}>
-                                          Image GPS Coordinates
-                                        </p>
+                                        <p className="font-medium mb-0.5" style={{ color: "var(--color-foreground)" }}>Image GPS</p>
                                         <p style={{ color: "var(--color-muted-foreground)" }}>
                                           {geo.imageCoords?.lat.toFixed(6)}, {geo.imageCoords?.lon.toFixed(6)}
                                         </p>
                                       </div>
                                       <div>
-                                        <p className="font-medium mb-0.5" style={{ color: "var(--color-foreground)" }}>
-                                          Project Address Coordinates
-                                        </p>
+                                        <p className="font-medium mb-0.5" style={{ color: "var(--color-foreground)" }}>Project Address</p>
                                         <p style={{ color: "var(--color-muted-foreground)" }}>
                                           {geo.projectCoords?.lat.toFixed(6)}, {geo.projectCoords?.lon.toFixed(6)}
                                         </p>
                                       </div>
                                     </div>
                                     <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                                      Distance between image location and project site:{" "}
+                                      Distance:{" "}
                                       <strong style={{ color: "var(--color-foreground)" }}>
                                         {geo.distanceKm?.toFixed(3)} km
                                       </strong>
-                                      {" "}(threshold: 1.0 km)
-                                    </p>
-                                    <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                                      Project address: <strong>{geo.projectAddress}</strong>
+                                      {" "}(threshold: 1.0 km) · Site: <strong>{geo.projectAddress}</strong>
                                     </p>
                                   </>
                                 )}

@@ -17,6 +17,20 @@ def chat(prompt: str, temperature: float = 0.4, max_tokens: int = 1500) -> str:
     return response.choices[0].message.content.strip()
 
 
+def chat_vision(prompt: str, image_urls: list[str], temperature: float = 0.3, max_tokens: int = 1500) -> str:
+    """Send a prompt with images to a Groq vision model."""
+    content = [{"type": "text", "text": prompt}]
+    for url in image_urls[:4]:  # cap at 4 images
+        content.append({"type": "image_url", "image_url": {"url": url}})
+    response = _client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[{"role": "user", "content": content}],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content.strip()
+
+
 def chat_json(prompt: str, temperature: float = 0.4, max_tokens: int = 1500) -> dict:
     """Call Groq and parse the response as JSON, retrying on rate limits or bad JSON."""
     last_error: Exception = RuntimeError("chat_json: no attempts made")

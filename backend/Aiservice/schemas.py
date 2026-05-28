@@ -117,3 +117,19 @@ class PenalizeWorkerRequest(BaseModel):
     worker_id: str
     claim_id: str
     severity: str = "STANDARD"
+
+
+class VerifyImageLocationRequest(BaseModel):
+    claim_id: str
+    image_urls: List[str]
+    construction_location: str
+
+
+class ImageVerificationResponse(BaseModel):
+    claim_id: str
+    location_status: str          # VERIFIED | MISMATCH | UNCERTAIN
+    confidence: str               # HIGH | MEDIUM | LOW
+    what_is_visible: str
+    location_indicators: str
+    analysis: str
+    reasoning: str

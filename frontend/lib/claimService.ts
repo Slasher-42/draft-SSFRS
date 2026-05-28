@@ -69,6 +69,28 @@ export const claimService = {
     return res.data;
   },
 
+  async updateClaim(
+    id: string,
+    description: string,
+    proofDocuments: File[],
+    ghostProjectImages: File[],
+    messageEvidenceJson: string | null
+  ): Promise<ClaimResponse> {
+    const form = new FormData();
+    form.append("description", description);
+    proofDocuments.forEach((f) => form.append("proofDocuments", f));
+    ghostProjectImages.forEach((f) => form.append("ghostProjectImages", f));
+    if (messageEvidenceJson) form.append("messageEvidenceJson", messageEvidenceJson);
+    const res = await executionApi.put<ClaimResponse>(`/api/claims/${id}`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
+  },
+
+  async deleteClaim(id: string): Promise<void> {
+    await executionApi.delete(`/api/claims/${id}`);
+  },
+
   async respondToClaim(id: string, response: string): Promise<ClaimResponse> {
     const res = await executionApi.post<ClaimResponse>(`/api/claims/${id}/respond`, { response });
     return res.data;
