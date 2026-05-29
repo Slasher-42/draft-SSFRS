@@ -80,6 +80,8 @@ export const notificationService = {
         return "/dashboard/refund-office/claims";
       case "REFUND_COMPLETED":
         return "/dashboard/provider/account";
+      case "ADMIN_MESSAGE":
+        return "/dashboard/provider/projects";
       default:
         return "#";
     }

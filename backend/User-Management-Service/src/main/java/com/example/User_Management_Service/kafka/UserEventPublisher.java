@@ -7,6 +7,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -59,6 +60,20 @@ public class UserEventPublisher {
                 null,
                 LocalDateTime.now()
         ));
+    }
+
+    public void publishAdminProviderMessage(String providerId, String subject, String message) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "providerId", providerId,
+                    "subject", subject,
+                    "message", message
+            ));
+            kafkaTemplate.send(KafkaTopicConfig.ADMIN_PROVIDER_MESSAGE, providerId, payload);
+        } catch (Exception e) {
+            log.warn("Kafka unavailable — admin-provider-message not published for providerId '{}': {}",
+                    providerId, e.getMessage());
+        }
     }
 
     private void publish(String topic, UserEvent event) {

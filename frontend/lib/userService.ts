@@ -70,6 +70,12 @@ function roleToPath(role: string): string {
   }
 }
 
+export interface AdminMessagePayload {
+  providerId: string;
+  subject: string;
+  message: string;
+}
+
 export const userService = {
   async getUser(userId: string): Promise<UserProfile> {
     const res = await api.get<UserProfile>(`/api/users/${userId}`);
@@ -95,6 +101,15 @@ export const userService = {
     const path = roleToPath(role);
     const res = await api.put(`/api/profiles/${path}/${userId}`, data);
     return res.data;
+  },
+
+  async getProviders(): Promise<UserProfile[]> {
+    const res = await api.get<UserProfile[]>("/api/admin/providers");
+    return res.data;
+  },
+
+  async sendAdminMessage(data: AdminMessagePayload): Promise<void> {
+    await api.post("/api/admin/message-provider", data);
   },
 
   async uploadProfileImage(userId: string, file: File): Promise<UserProfile> {

@@ -1,5 +1,6 @@
 package com.example.User_Management_Service.controller;
 
+import com.example.User_Management_Service.dto.AdminMessageRequest;
 import com.example.User_Management_Service.dto.CreateAdminUserRequest;
 import com.example.User_Management_Service.dto.UserResponse;
 import com.example.User_Management_Service.service.UserService;
@@ -23,6 +24,17 @@ public class AdminController {
     @GetMapping("/users")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    @GetMapping("/providers")
+    public ResponseEntity<List<UserResponse>> getAllProviders() {
+        return ResponseEntity.ok(userService.getProviders());
+    }
+
+    @PostMapping("/message-provider")
+    public ResponseEntity<Void> sendMessageToProvider(@Valid @RequestBody AdminMessageRequest request) {
+        userService.sendMessageToProvider(request);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/users/{userId}")

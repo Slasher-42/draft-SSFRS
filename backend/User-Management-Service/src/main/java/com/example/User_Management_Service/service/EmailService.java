@@ -50,6 +50,22 @@ public class EmailService {
         mailSender.send(message);
     }
 
+    public void sendAdminMessageEmail(String toEmail, String providerName, String subject, String messageText) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("SSFRS – Message from Admin: " + subject);
+        message.setText(
+            "Hello " + providerName + ",\n\n" +
+            "You have received a message from the SSFRS administrator:\n\n" +
+            "Subject: " + subject + "\n\n" +
+            messageText + "\n\n" +
+            "Please log in to the SSFRS platform to view your notifications.\n\n" +
+            "– SSFRS Team"
+        );
+        mailSender.send(message);
+    }
+
     public void sendPasswordResetEmail(String toEmail, String resetLink) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);

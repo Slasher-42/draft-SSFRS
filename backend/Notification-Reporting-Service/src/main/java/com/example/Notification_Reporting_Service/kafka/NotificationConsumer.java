@@ -277,6 +277,49 @@ public class NotificationConsumer {
     }
 
     @Transactional
+    @KafkaListener(topics = "admin-provider-message", groupId = "notification-service-group",
+                   containerFactory = "kafkaListenerContainerFactory")
+    public void onAdminProviderMessage(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        String payload = record.value();
+        log.info("[Notification] admin-provider-message: {}", payload);
+
+        if (payload == null || !payload.trim().startsWith("{")) {
+            ack.acknowledge();
+            return;
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> data = MAPPER.readValue(payload, Map.class);
+
+            String providerId = data.get("providerId");
+            String subject    = data.get("subject");
+            String message    = data.get("message");
+
+            if (providerId == null || message == null) {
+                log.warn("[Notification] Incomplete admin-provider-message payload, skipping: {}", payload);
+                ack.acknowledge();
+                return;
+            }
+
+            String notifData = MAPPER.writeValueAsString(Map.of("subject", subject != null ? subject : ""));
+
+            notificationRepository.save(Notification.builder()
+                    .recipientId(providerId)
+                    .type("ADMIN_MESSAGE")
+                    .title("Message from Admin: " + (subject != null ? subject : ""))
+                    .message(message)
+                    .data(notifData)
+                    .build());
+
+            ack.acknowledge();
+            log.info("[Notification] Saved ADMIN_MESSAGE notification for provider={}", providerId);
+        } catch (Exception e) {
+            log.error("[Notification] Failed to process admin-provider-message: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
     @KafkaListener(topics = "refund-completed", groupId = "notification-service-group",
                    containerFactory = "kafkaListenerContainerFactory")
     public void onRefundCompleted(ConsumerRecord<String, String> record, Acknowledgment ack) {

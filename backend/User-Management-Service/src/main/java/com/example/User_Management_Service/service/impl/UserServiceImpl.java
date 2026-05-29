@@ -1,9 +1,11 @@
 package com.example.User_Management_Service.service.impl;
 
+import com.example.User_Management_Service.dto.AdminMessageRequest;
 import com.example.User_Management_Service.dto.ChangePasswordRequest;
 import com.example.User_Management_Service.dto.CreateAdminUserRequest;
 import com.example.User_Management_Service.dto.UpdateUserRequest;
 import com.example.User_Management_Service.dto.UserResponse;
+import com.example.User_Management_Service.model.Role;
 import com.example.User_Management_Service.exception.DuplicateEmailException;
 import com.example.User_Management_Service.exception.UserNotFoundException;
 import com.example.User_Management_Service.kafka.UserEventPublisher;
@@ -80,6 +82,35 @@ public class UserServiceImpl implements UserService {
                 .stream()
                 .map(this::mapToUserResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserResponse> getProviders() {
+        return userRepository.findAllByRole(Role.PROVIDER)
+                .stream()
+                .map(this::mapToUserResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void sendMessageToProvider(AdminMessageRequest request) {
+        User provider = findUserById(request.getProviderId());
+        try {
+            emailService.sendAdminMessageEmail(
+                    provider.getEmail(),
+                    provider.getFullName(),
+                    request.getSubject(),
+                    request.getMessage()
+            );
+        } catch (Exception e) {
+            log.warn("[Email] Could not send admin message email to {}: {}", provider.getEmail(), e.getMessage());
+        }
+        userEventPublisher.publishAdminProviderMessage(
+                request.getProviderId(),
+                request.getSubject(),
+                request.getMessage()
+        );
     }
 
     @Override

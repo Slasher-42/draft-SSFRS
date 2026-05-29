@@ -1,5 +1,6 @@
 package com.example.User_Management_Service.service;
 
+import com.example.User_Management_Service.dto.AdminMessageRequest;
 import com.example.User_Management_Service.dto.ChangePasswordRequest;
 import com.example.User_Management_Service.dto.CreateAdminUserRequest;
 import com.example.User_Management_Service.dto.UpdateUserRequest;
@@ -17,6 +18,10 @@ public interface UserService {
     void changePassword(String userId, ChangePasswordRequest request);
 
     List<UserResponse> getAllUsers();
+
+    List<UserResponse> getProviders();
+
+    void sendMessageToProvider(AdminMessageRequest request);
 
     UserResponse createRestrictedUser(CreateAdminUserRequest request);
 
