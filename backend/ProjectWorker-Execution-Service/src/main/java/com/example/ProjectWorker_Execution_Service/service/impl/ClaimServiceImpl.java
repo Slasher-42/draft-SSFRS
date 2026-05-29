@@ -8,12 +8,10 @@ import com.example.ProjectWorker_Execution_Service.dto.WorkerClaimResponseReques
 import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.exception.ResourceNotFoundException;
 import com.example.ProjectWorker_Execution_Service.kafka.ExecutionEventPublisher;
-import com.example.ProjectWorker_Execution_Service.model.Account;
 import com.example.ProjectWorker_Execution_Service.model.Claim;
 import com.example.ProjectWorker_Execution_Service.model.ClaimStatus;
 import com.example.ProjectWorker_Execution_Service.model.Project;
 import com.example.ProjectWorker_Execution_Service.model.ProjectStatus;
-import com.example.ProjectWorker_Execution_Service.repository.AccountRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ClaimRepository;
 import com.example.ProjectWorker_Execution_Service.repository.ProjectRepository;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
@@ -26,11 +24,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,7 +35,6 @@ public class ClaimServiceImpl implements ClaimService {
 
     private final ClaimRepository claimRepository;
     private final ProjectRepository projectRepository;
-    private final AccountRepository accountRepository;
     private final S3UploadService s3UploadService;
     private final ExecutionEventPublisher eventPublisher;
 
@@ -303,58 +298,6 @@ public class ClaimServiceImpl implements ClaimService {
             claim.setAiMediationReport(report);
             claimRepository.save(claim);
         });
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ClaimResponse> getRefundPendingClaims(UserPrincipal principal) {
-        if (!"REFUND_OFFICE".equals(principal.getRole())) {
-            throw new ForbiddenException("Only refund office staff can access this.");
-        }
-        return claimRepository.findAllByStatusOrderByCreatedAtDesc(ClaimStatus.REFUND_INITIATED)
-                .stream().map(c -> toResponseWithProject(c, projectRepository.findById(c.getProjectId()).orElse(null)))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional
-    public ClaimResponse processRefund(String claimId, UserPrincipal principal) {
-        if (!"REFUND_OFFICE".equals(principal.getRole())) {
-            throw new ForbiddenException("Only refund office staff can process refunds.");
-        }
-        Claim claim = findClaim(claimId);
-        if (claim.getStatus() != ClaimStatus.REFUND_INITIATED) {
-            throw new IllegalArgumentException("Only claims with status REFUND_INITIATED can be processed.");
-        }
-
-        Project project = projectRepository.findById(claim.getProjectId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found."));
-
-        BigDecimal refundAmount = project.getBudget();
-
-        Account providerAccount = accountRepository.findByUserId(claim.getProviderId())
-                .orElseGet(() -> accountRepository.save(Account.builder()
-                        .userId(claim.getProviderId())
-                        .role("PROVIDER")
-                        .accountNumber(generateUniqueAccountNumber())
-                        .build()));
-
-        providerAccount.setBalance(providerAccount.getBalance().add(refundAmount));
-        accountRepository.save(providerAccount);
-
-        claim.setStatus(ClaimStatus.REFUNDED);
-        claimRepository.save(claim);
-
-        eventPublisher.publishRefundCompleted(claimId, claim.getProviderId(), refundAmount.toPlainString());
-        return toResponseWithProject(claim, project);
-    }
-
-    private String generateUniqueAccountNumber() {
-        String num;
-        do {
-            num = String.format("%010d", ThreadLocalRandom.current().nextLong(0, 10_000_000_000L));
-        } while (accountRepository.existsByAccountNumber(num));
-        return num;
     }
 
     private Claim findClaim(String claimId) {

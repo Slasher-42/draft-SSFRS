@@ -416,8 +416,8 @@ function ProjectCard({
                   </p>
                 </div>
 
-                {/* AI Candidates — only for funded OPEN projects */}
-                {project.status === "OPEN" && project.funded && (
+                {/* AI Candidates — for all OPEN projects */}
+                {project.status === "OPEN" && (
                   <div className="rounded-xl border overflow-hidden"
                     style={{ borderColor: "var(--color-border)" }}>
                     <div className="flex items-center justify-between px-4 py-3"

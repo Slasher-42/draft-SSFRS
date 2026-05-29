@@ -63,8 +63,20 @@ export default function ProviderAccountPage() {
   const deposited = allProjects
     .filter(p => p.status === "OPEN" && p.funded)
     .reduce((sum, p) => sum + p.budget, 0);
+  // Exclude REFUNDED claims only when their project is OPEN *and* funded=true,
+  // meaning the budget is already counted in `deposited`. If funded=false the
+  // project isn't in `deposited`, so the claim must still be counted here.
+  const repostedAndFundedIds = new Set(
+    myClaims
+      .filter(c => c.status === "REFUNDED")
+      .map(c => c.projectId)
+      .filter(pid => {
+        const proj = allProjects.find(p => p.id === pid);
+        return proj?.status === "OPEN" && proj?.funded === true;
+      })
+  );
   const refunded = myClaims
-    .filter(c => c.status === "REFUNDED")
+    .filter(c => c.status === "REFUNDED" && !repostedAndFundedIds.has(c.projectId))
     .reduce((sum, c) => sum + (c.projectBudget ?? 0), 0);
   const totalDeposited = deposited + refunded;
   const lockedTotal = allProjects

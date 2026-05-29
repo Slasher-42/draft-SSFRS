@@ -84,22 +84,6 @@ public class EvaluatorClaimServiceImpl implements EvaluatorClaimService {
         return toResponse(claim, fetchProject(claim.getProjectId()));
     }
 
-    @Override
-    @Transactional
-    public EvaluatorClaimResponse initiateRefund(String claimId, UserPrincipal principal) {
-        if (!"EVALUATOR".equals(principal.getRole())) {
-            throw new ForbiddenException("Only evaluators can initiate refund processes.");
-        }
-        Claim claim = findClaim(claimId);
-        if (claim.getStatus() != ClaimStatus.APPROVED) {
-            throw new IllegalArgumentException("Only approved claims can have a refund initiated.");
-        }
-        claim.setStatus(ClaimStatus.REFUND_INITIATED);
-        claimRepository.save(claim);
-        eventPublisher.publishRefundInitiated(claimId, claim.getProviderId(), claim.getWorkerId(), claim.getProjectId());
-        return toResponse(claim, fetchProject(claim.getProjectId()));
-    }
-
     private void requireEvaluatorOrAdmin(UserPrincipal principal) {
         String role = principal.getRole();
         if (!"EVALUATOR".equals(role) && !"ADMIN".equals(role)) {

@@ -45,10 +45,4 @@ public class EvaluatorClaimController {
         return ResponseEntity.ok(evaluatorClaimService.rejectClaim(id, principal));
     }
 
-    @PatchMapping("/{id}/initiate-refund")
-    public ResponseEntity<EvaluatorClaimResponse> initiateRefund(
-            @PathVariable String id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(evaluatorClaimService.initiateRefund(id, principal));
-    }
 }

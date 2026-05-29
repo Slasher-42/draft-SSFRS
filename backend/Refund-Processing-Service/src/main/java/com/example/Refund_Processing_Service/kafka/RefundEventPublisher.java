@@ -1,4 +1,4 @@
-package com.example.Evaluation_Decision_Service.kafka;
+package com.example.Refund_Processing_Service.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -11,17 +11,25 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class EvaluationEventPublisher {
+public class RefundEventPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public void publishClaimDecision(String claimId, String workerId, String providerId, String decision) {
-        send("claim-decision", toJson(Map.of(
+    public void publishRefundInitiated(String claimId, String providerId, String workerId, String projectId) {
+        send("refund-initiated", toJson(Map.of(
                 "claimId", claimId,
-                "workerId", workerId,
                 "providerId", providerId,
-                "decision", decision
+                "workerId", workerId,
+                "projectId", projectId
+        )));
+    }
+
+    public void publishRefundCompleted(String claimId, String providerId, String amount) {
+        send("refund-completed", toJson(Map.of(
+                "claimId", claimId,
+                "providerId", providerId,
+                "amount", amount
         )));
     }
 

@@ -150,7 +150,6 @@ public class ProjectServiceImpl implements ProjectService {
             throw new ForbiddenException("Only admins can view all projects.");
         }
         return projectRepository.findAll().stream()
-                .filter(p -> Boolean.TRUE.equals(p.getFunded()))
                 .sorted(Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -365,15 +364,16 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStatus() != ProjectStatus.OPEN) {
             throw new IllegalArgumentException("Only open projects can have a worker assigned.");
         }
-        if (!Boolean.TRUE.equals(project.getFunded())) {
-            throw new IllegalArgumentException("This project has not been funded by the provider yet.");
+
+        Account providerAccount = accountRepository.findByUserId(project.getProviderId())
+                .orElseThrow(() -> new IllegalArgumentException("Provider has no account. Ask them to fund the project first."));
+        if (providerAccount.getBalance().compareTo(project.getBudget()) < 0) {
+            throw new IllegalArgumentException("Provider has insufficient balance. Ask them to fund the project first.");
         }
 
-        accountRepository.findByUserId(project.getProviderId()).ifPresent(providerAccount -> {
-            providerAccount.setBalance(providerAccount.getBalance().subtract(project.getBudget()));
-            providerAccount.setPendingBalance(providerAccount.getPendingBalance().add(project.getBudget()));
-            accountRepository.save(providerAccount);
-        });
+        providerAccount.setBalance(providerAccount.getBalance().subtract(project.getBudget()));
+        providerAccount.setPendingBalance(providerAccount.getPendingBalance().add(project.getBudget()));
+        accountRepository.save(providerAccount);
 
         Account workerAccount = accountRepository.findByUserId(workerId).orElseGet(() ->
                 accountRepository.save(Account.builder()
@@ -413,7 +413,7 @@ public class ProjectServiceImpl implements ProjectService {
             }
         });
         project.setStatus(ProjectStatus.OPEN);
-        project.setFunded(false);
+        project.setFunded(true);
         project.setAssignedWorkerId(null);
         projectRepository.save(project);
         return toResponse(project);

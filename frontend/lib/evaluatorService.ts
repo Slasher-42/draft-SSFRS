@@ -51,9 +51,4 @@ export const evaluatorService = {
     const res = await evaluationApi.patch(`/api/evaluator/claims/${id}/reject`);
     return res.data;
   },
-
-  async initiateRefund(id: string): Promise<EvaluatorClaimResponse> {
-    const res = await evaluationApi.patch(`/api/evaluator/claims/${id}/initiate-refund`);
-    return res.data;
-  },
 };

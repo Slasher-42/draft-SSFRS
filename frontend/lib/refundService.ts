@@ -1,10 +1,10 @@
 import axios from "axios";
 
-const EXECUTION_API_URL =
-  process.env.NEXT_PUBLIC_EXECUTION_API_URL || "http://localhost:8082";
+const REFUND_API_URL =
+  process.env.NEXT_PUBLIC_REFUND_API_URL || "http://localhost:8086";
 
 const refundApi = axios.create({
-  baseURL: EXECUTION_API_URL,
+  baseURL: REFUND_API_URL,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -38,6 +38,11 @@ export interface RefundClaimResponse {
 }
 
 export const refundService = {
+  async initiateRefund(id: string): Promise<RefundClaimResponse> {
+    const res = await refundApi.patch<RefundClaimResponse>(`/api/evaluator/claims/${id}/initiate-refund`);
+    return res.data;
+  },
+
   async getRefundPendingClaims(): Promise<RefundClaimResponse[]> {
     const res = await refundApi.get<RefundClaimResponse[]>("/api/refund-office/claims");
     return res.data;

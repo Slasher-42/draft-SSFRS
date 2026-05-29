@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { evaluatorService, type EvaluatorClaimResponse, type MessageEvidenceItem } from "@/lib/evaluatorService";
+import { refundService } from "@/lib/refundService";
 import { aiService, type ImageVerificationResult } from "@/lib/aiService";
 
 type StatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "REFUND_INITIATED" | "REFUNDED";
@@ -161,7 +162,7 @@ export default function EvaluatorClaimsPage() {
   const handleInitiateRefund = async (id: string) => {
     setActionLoading(prev => ({ ...prev, [id]: true }));
     try {
-      const updated = await evaluatorService.initiateRefund(id);
+      const updated = await refundService.initiateRefund(id);
       setClaims(prev => prev.map(c => c.id === id ? updated : c));
       toast.success("Refund process initiated. Refund office notified.");
     } catch {
