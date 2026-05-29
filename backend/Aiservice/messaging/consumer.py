@@ -99,7 +99,7 @@ def handle_claim_filed(payload: str):
     claim_id, project_id, worker_id = parts[0], parts[1], parts[2]
     try:
         claim_resp = httpx.get(
-            f"{settings.service2_base_url}/api/claims/{claim_id}",
+            f"{settings.service2_base_url}/api/internal/claims/{claim_id}",
             headers=INTERNAL_HEADERS,
             timeout=10,
         )
@@ -109,7 +109,8 @@ def handle_claim_filed(payload: str):
             timeout=10,
         )
         if claim_resp.status_code != 200 or project_resp.status_code != 200:
-            print(f"[Consumer] Could not fetch data for claim {claim_id}")
+            print(f"[Consumer] Could not fetch data for claim {claim_id} "
+                  f"(claim={claim_resp.status_code}, project={project_resp.status_code})")
             return
 
         claim = claim_resp.json()

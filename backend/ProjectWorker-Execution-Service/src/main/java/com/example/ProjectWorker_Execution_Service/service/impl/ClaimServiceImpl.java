@@ -278,6 +278,12 @@ public class ClaimServiceImpl implements ClaimService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ClaimResponse getClaimByIdInternal(String claimId) {
+        return toResponse(findClaim(claimId));
+    }
+
+    @Override
     @Transactional
     public ClaimResponse respondToClaim(String claimId, WorkerClaimResponseRequest request,
                                          UserPrincipal principal) {

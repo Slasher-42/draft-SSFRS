@@ -21,6 +21,8 @@ public interface ClaimService {
 
     ClaimResponse getClaimById(String claimId, UserPrincipal principal);
 
+    ClaimResponse getClaimByIdInternal(String claimId);
+
     void deleteClaim(String claimId, UserPrincipal principal);
 
     ClaimResponse updateClaim(String claimId, String description,

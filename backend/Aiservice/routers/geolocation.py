@@ -1,4 +1,5 @@
 import json
+import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
@@ -46,6 +47,8 @@ def verify_image_location(request: VerifyImageLocationRequest):
         )
         return ImageVerificationResponse(**result)
     except Exception as e:
+        print(f"[verify-image] ERROR for claim {request.claim_id}: {e}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 

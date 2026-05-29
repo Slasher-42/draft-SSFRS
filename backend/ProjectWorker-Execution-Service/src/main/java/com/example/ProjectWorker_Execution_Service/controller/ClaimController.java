@@ -86,6 +86,16 @@ public class ClaimController {
         return ResponseEntity.ok(claimService.respondToClaim(id, request, principal));
     }
 
+    @GetMapping("/api/internal/claims/{id}")
+    public ResponseEntity<ClaimResponse> getClaimInternal(
+            @PathVariable String id,
+            @RequestHeader("X-Internal-Key") String key) {
+        if (!internalApiKey.equals(key)) {
+            throw new ForbiddenException("Invalid internal API key.");
+        }
+        return ResponseEntity.ok(claimService.getClaimByIdInternal(id));
+    }
+
     @PatchMapping("/api/internal/claims/{id}/mediation")
     public ResponseEntity<Void> updateMediationReport(
             @PathVariable String id,

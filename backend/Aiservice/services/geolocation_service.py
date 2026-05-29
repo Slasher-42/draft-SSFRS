@@ -138,6 +138,10 @@ Output ONLY this JSON, nothing else:
     if result.get("location_status") not in ("VERIFIED", "MISMATCH"):
         result["location_status"] = "MISMATCH"
 
+    # Normalise — model sometimes returns location_indicators as a list instead of a string
+    if isinstance(result.get("location_indicators"), list):
+        result["location_indicators"] = "; ".join(result["location_indicators"])
+
     result["claim_id"] = claim_id
     return result
 
