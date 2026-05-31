@@ -1,6 +1,7 @@
 package com.example.ProjectWorker_Execution_Service.service;
 
 import com.example.ProjectWorker_Execution_Service.dto.WorkerCvResponse;
+import com.example.ProjectWorker_Execution_Service.dto.WorkerMonitorEntry;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,9 +19,13 @@ public interface WorkerCvService {
 
     List<WorkerCvResponse> getAllCvs();
 
+    List<WorkerMonitorEntry> getWorkersForMonitor();
+
     void updateRatingScore(String workerId, double score, String reasoning);
 
     void updateApprovalStatus(String workerId, String status);
+
+    void setBanStatus(String workerId, boolean banned);
 
     void incrementCompletedProjects(String workerId);
 

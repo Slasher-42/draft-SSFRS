@@ -112,6 +112,15 @@ export const userService = {
     await api.post("/api/admin/message-provider", data);
   },
 
+  async getUsersByRole(role: string): Promise<UserProfile[]> {
+    const res = await api.get<UserProfile[]>(`/api/users/by-role/${role}`);
+    return res.data;
+  },
+
+  async sendStaffMessage(recipientId: string, subject: string, message: string): Promise<void> {
+    await api.post("/api/users/staff-message", { recipientId, subject, message });
+  },
+
   async uploadProfileImage(userId: string, file: File): Promise<UserProfile> {
     const form = new FormData();
     form.append("file", file);

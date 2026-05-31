@@ -108,11 +108,17 @@ export default function WorkerPendingProjectsPage() {
                 <div className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h5 className="font-semibold" style={{ color: "var(--color-foreground)" }}>{p.title}</h5>
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
                           style={{ backgroundColor: statusColor[p.status] + "20", color: statusColor[p.status] }}>
                           {p.status}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                          style={p.funded
+                            ? { backgroundColor: "#22c55e20", color: "#22c55e" }
+                            : { backgroundColor: "#f59e0b20", color: "#f59e0b" }}>
+                          {p.funded ? "Funded" : "Awaiting Funding"}
                         </span>
                       </div>
                       <p className="text-sm line-clamp-2" style={{ color: "var(--color-muted-foreground)" }}>

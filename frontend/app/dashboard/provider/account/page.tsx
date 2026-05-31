@@ -14,7 +14,6 @@ import {
   type BankAccountRequest,
 } from "@/lib/accountService";
 import { projectService, type ProjectResponse } from "@/lib/projectService";
-import { claimService, type ClaimResponse } from "@/lib/claimService";
 
 const maskAccount = (num: string) =>
   num.length <= 4 ? num : "•••• " + num.slice(-4);
@@ -25,7 +24,6 @@ export default function ProviderAccountPage() {
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [allProjects, setAllProjects] = useState<ProjectResponse[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([]);
-  const [myClaims, setMyClaims] = useState<ClaimResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   // deposit state
@@ -47,12 +45,10 @@ export default function ProviderAccountPage() {
       accountService.getAccount(),
       projectService.getMyProjects(),
       accountService.getBankAccounts(),
-      claimService.getMyClaims(),
-    ]).then(([acc, projs, banks, claims]) => {
+    ]).then(([acc, projs, banks]) => {
       setAccount(acc);
       setAllProjects(projs);
       setBankAccounts(banks);
-      setMyClaims(claims);
       const def = banks.find(b => b.defaultAccount);
       if (def) setSelectedBankAccountId(def.id);
     }).catch(() => toast.error("Failed to load account."))
@@ -60,28 +56,8 @@ export default function ProviderAccountPage() {
   }, []);
 
   const projects = allProjects.filter(p => p.status === "OPEN" && !p.funded);
-  const deposited = allProjects
-    .filter(p => p.status === "OPEN" && p.funded)
-    .reduce((sum, p) => sum + p.budget, 0);
-  // Exclude REFUNDED claims only when their project is OPEN *and* funded=true,
-  // meaning the budget is already counted in `deposited`. If funded=false the
-  // project isn't in `deposited`, so the claim must still be counted here.
-  const repostedAndFundedIds = new Set(
-    myClaims
-      .filter(c => c.status === "REFUNDED")
-      .map(c => c.projectId)
-      .filter(pid => {
-        const proj = allProjects.find(p => p.id === pid);
-        return proj?.status === "OPEN" && proj?.funded === true;
-      })
-  );
-  const refunded = myClaims
-    .filter(c => c.status === "REFUNDED" && !repostedAndFundedIds.has(c.projectId))
-    .reduce((sum, c) => sum + (c.projectBudget ?? 0), 0);
-  const totalDeposited = deposited + refunded;
-  const lockedTotal = allProjects
-    .filter(p => p.status === "ASSIGNED")
-    .reduce((sum, p) => sum + p.budget, 0);
+  const availableBalance = account?.balance ?? 0;
+  const lockedTotal = account?.pendingBalance ?? 0;
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
@@ -212,10 +188,10 @@ export default function ProviderAccountPage() {
             style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-background)" }}>
             <div className="flex items-center gap-1.5 mb-1">
               <DollarSign className="h-4 w-4" style={{ color: "#22c55e" }} />
-              <p className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>Total Deposited</p>
+              <p className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>Available Balance</p>
             </div>
             <p className="text-xl font-bold" style={{ color: "var(--color-foreground)" }}>
-              ${totalDeposited.toFixed(2)}
+              ${Number(availableBalance).toFixed(2)}
             </p>
           </div>
           <div className="rounded-lg border p-4"
@@ -225,7 +201,7 @@ export default function ProviderAccountPage() {
               <p className="text-xs font-medium" style={{ color: "var(--color-muted-foreground)" }}>Locked in Projects</p>
             </div>
             <p className="text-xl font-bold" style={{ color: "var(--color-foreground)" }}>
-              ${lockedTotal.toFixed(2)}
+              ${Number(lockedTotal).toFixed(2)}
             </p>
           </div>
         </div>

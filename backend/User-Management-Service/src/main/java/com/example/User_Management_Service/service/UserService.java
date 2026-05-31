@@ -21,7 +21,11 @@ public interface UserService {
 
     List<UserResponse> getProviders();
 
+    List<UserResponse> getUsersByRole(String role);
+
     void sendMessageToProvider(AdminMessageRequest request);
+
+    void sendStaffMessage(String recipientId, String subject, String message);
 
     UserResponse createRestrictedUser(CreateAdminUserRequest request);
 

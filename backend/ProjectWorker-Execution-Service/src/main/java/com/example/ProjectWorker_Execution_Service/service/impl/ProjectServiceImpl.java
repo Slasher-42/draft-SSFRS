@@ -158,7 +158,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Cacheable(value = "projects-open", key = "'open'")
     public List<ProjectResponse> getOpenProjects() {
-        return projectRepository.findAllByStatusAndFunded(ProjectStatus.OPEN, true)
+        return projectRepository.findAllByStatus(ProjectStatus.OPEN)
                 .stream()
                 .sorted(Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toResponse)
@@ -267,6 +267,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         List<WorkerCv> allCvs = workerCvRepository.findAll().stream()
                 .filter(cv -> "APPROVED".equals(cv.getApprovalStatus())
+                           && !cv.isBanned()
                            && cv.getSpecialization() != null
                            && cv.getWorkerName() != null
                            && cv.getWorkerEmail() != null)
@@ -407,9 +408,15 @@ public class ProjectServiceImpl implements ProjectService {
         if (project.getStatus() != ProjectStatus.FAILED) {
             throw new IllegalArgumentException("Only failed projects can be reposted.");
         }
-        claimRepository.findByProjectId(projectId).ifPresent(claim -> {
-            if (claim.getStatus() != ClaimStatus.REFUNDED) {
-                throw new IllegalArgumentException("Project can only be reposted after its claim has been refunded.");
+        if (claimRepository.existsByProjectIdAndStatusNotIn(
+                projectId, List.of(ClaimStatus.REFUNDED, ClaimStatus.REJECTED))) {
+            throw new IllegalArgumentException(
+                    "An active claim exists for this project. It must be refunded before the project can be reposted.");
+        }
+        accountRepository.findByUserId(project.getProviderId()).ifPresent(account -> {
+            if (account.getBalance().compareTo(project.getBudget()) < 0) {
+                throw new IllegalArgumentException(
+                        "Insufficient balance to repost. File a claim for the project failure and wait for the refund to be processed.");
             }
         });
         project.setStatus(ProjectStatus.OPEN);

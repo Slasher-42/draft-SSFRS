@@ -64,8 +64,11 @@ public class ClaimServiceImpl implements ClaimService {
             throw new IllegalArgumentException("No worker was assigned to this project.");
         }
 
-        if (claimRepository.findByProjectId(projectId).isPresent()) {
-            throw new IllegalArgumentException("A claim has already been filed for this project.");
+        // Block only if there is an active (non-terminal) claim for this project.
+        // REFUNDED and REJECTED are terminal — allow a new claim after a re-assignment.
+        if (claimRepository.existsByProjectIdAndStatusNotIn(
+                projectId, List.of(ClaimStatus.REFUNDED, ClaimStatus.REJECTED))) {
+            throw new IllegalArgumentException("A claim is already in progress for this project.");
         }
 
         List<String> docKeys = new ArrayList<>();

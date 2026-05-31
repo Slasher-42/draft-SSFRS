@@ -17,6 +17,8 @@ export interface EvaluatorClaimResponse {
   workerResponse: string | null;
   aiMediationReport: string | null;
   constructionLocation: string | null;
+  projectTitle: string | null;
+  projectStatus: "OPEN" | "ASSIGNED" | "COMPLETED" | "FAILED" | null;
   createdAt: string;
   updatedAt: string;
 }

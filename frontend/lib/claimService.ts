@@ -51,22 +51,22 @@ export const claimService = {
   },
 
   async getMyClaims(): Promise<ClaimResponse[]> {
-    const res = await executionApi.get<ClaimResponse[]>("/api/claims/my");
+    const res = await executionApi.get<ClaimResponse[]>("/api/claims/my", { cache: false });
     return res.data;
   },
 
   async getClaimsAgainstMe(): Promise<ClaimResponse[]> {
-    const res = await executionApi.get<ClaimResponse[]>("/api/claims/against-me");
+    const res = await executionApi.get<ClaimResponse[]>("/api/claims/against-me", { cache: false });
     return res.data;
   },
 
   async getAllClaims(): Promise<ClaimResponse[]> {
-    const res = await executionApi.get<ClaimResponse[]>("/api/claims/all");
+    const res = await executionApi.get<ClaimResponse[]>("/api/claims/all", { cache: false });
     return res.data;
   },
 
   async getClaim(id: string): Promise<ClaimResponse> {
-    const res = await executionApi.get<ClaimResponse>(`/api/claims/${id}`);
+    const res = await executionApi.get<ClaimResponse>(`/api/claims/${id}`, { cache: false });
     return res.data;
   },
 

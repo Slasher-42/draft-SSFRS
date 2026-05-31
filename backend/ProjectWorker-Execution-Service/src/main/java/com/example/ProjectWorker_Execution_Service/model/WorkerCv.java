@@ -57,7 +57,11 @@ public class WorkerCv {
 
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private String approvalStatus = "PENDING";  
+    private String approvalStatus = "PENDING";
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean banned = false;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;

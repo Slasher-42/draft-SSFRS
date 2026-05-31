@@ -60,6 +60,18 @@ public class RefundServiceImpl implements RefundService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ClaimResponse> getRefundedClaims(UserPrincipal principal) {
+        if (!"REFUND_OFFICE".equals(principal.getRole())) {
+            throw new ForbiddenException("Only refund office staff can access this.");
+        }
+        return claimRepository.findAllByStatusOrderByCreatedAtDesc(ClaimStatus.REFUNDED)
+                .stream()
+                .map(c -> toResponseWithProject(c, projectRepository.findById(c.getProjectId()).orElse(null)))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public ClaimResponse processRefund(String claimId, UserPrincipal principal) {
         if (!"REFUND_OFFICE".equals(principal.getRole())) {

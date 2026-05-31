@@ -29,6 +29,12 @@ public class RefundController {
         return ResponseEntity.ok(refundService.getRefundPendingClaims(principal));
     }
 
+    @GetMapping("/api/refund-office/claims/refunded")
+    public ResponseEntity<List<ClaimResponse>> getRefundedClaims(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(refundService.getRefundedClaims(principal));
+    }
+
     @PatchMapping("/api/refund-office/claims/{id}/process-refund")
     public ResponseEntity<ClaimResponse> processRefund(
             @PathVariable String id,

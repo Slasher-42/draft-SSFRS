@@ -93,6 +93,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<UserResponse> getUsersByRole(String role) {
+        return userRepository.findAllByRole(Role.valueOf(role))
+                .stream()
+                .map(this::mapToUserResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void sendStaffMessage(String recipientId, String subject, String message) {
+        User recipient = findUserById(recipientId);
+        try {
+            emailService.sendAdminMessageEmail(recipient.getEmail(), recipient.getFullName(), subject, message);
+        } catch (Exception e) {
+            log.warn("[Email] Could not send staff message email to {}: {}", recipient.getEmail(), e.getMessage());
+        }
+        userEventPublisher.publishAdminProviderMessage(recipientId, subject, message);
+    }
+
+    @Override
     @Transactional
     public void sendMessageToProvider(AdminMessageRequest request) {
         User provider = findUserById(request.getProviderId());

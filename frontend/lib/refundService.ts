@@ -48,6 +48,11 @@ export const refundService = {
     return res.data;
   },
 
+  async getRefundedClaims(): Promise<RefundClaimResponse[]> {
+    const res = await refundApi.get<RefundClaimResponse[]>("/api/refund-office/claims/refunded");
+    return res.data;
+  },
+
   async processRefund(claimId: string): Promise<RefundClaimResponse> {
     const res = await refundApi.patch<RefundClaimResponse>(`/api/refund-office/claims/${claimId}/process-refund`);
     return res.data;

@@ -11,5 +11,7 @@ public interface RefundService {
 
     List<ClaimResponse> getRefundPendingClaims(UserPrincipal principal);
 
+    List<ClaimResponse> getRefundedClaims(UserPrincipal principal);
+
     ClaimResponse processRefund(String claimId, UserPrincipal principal);
 }

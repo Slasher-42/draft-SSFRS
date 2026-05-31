@@ -7,8 +7,12 @@ import com.example.User_Management_Service.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -20,6 +24,25 @@ public class UserController {
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable String userId) {
         return ResponseEntity.ok(userService.getUserById(userId));
+    }
+
+    @GetMapping("/by-role/{role}")
+    @PreAuthorize("hasAnyRole('EVALUATOR', 'REFUND_OFFICE', 'ADMIN')")
+    public ResponseEntity<List<UserResponse>> getUsersByRole(@PathVariable String role) {
+        return ResponseEntity.ok(userService.getUsersByRole(role));
+    }
+
+    @PostMapping("/staff-message")
+    @PreAuthorize("hasAnyRole('EVALUATOR', 'REFUND_OFFICE', 'ADMIN')")
+    public ResponseEntity<Void> sendStaffMessage(@RequestBody Map<String, String> body) {
+        String recipientId = body.get("recipientId");
+        String subject     = body.get("subject");
+        String message     = body.get("message");
+        if (recipientId == null || subject == null || message == null) {
+            throw new IllegalArgumentException("recipientId, subject, and message are required.");
+        }
+        userService.sendStaffMessage(recipientId, subject, message);
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{userId}")

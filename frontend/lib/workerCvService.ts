@@ -12,8 +12,34 @@ export interface WorkerCvResponse {
   ratingScore: number;
   ratingReasoning: string | null;
   approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
+  completedProjects: number;
+  pastFailures: number;
+  banned: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FailedProjectSummary {
+  claimId: string;
+  projectId: string;
+  projectTitle: string;
+  projectBudget: number | null;
+  claimStatus: string;
+  claimCreatedAt: string;
+}
+
+export interface WorkerMonitorEntry {
+  workerId: string;
+  workerName: string;
+  workerEmail: string;
+  specialization: string;
+  ratingScore: number;
+  yearsOfExperience: number;
+  completedProjects: number;
+  pastFailures: number;
+  approvalStatus: string;
+  banned: boolean;
+  failedProjects: FailedProjectSummary[];
 }
 
 export const workerCvService = {
@@ -51,5 +77,14 @@ export const workerCvService = {
 
   async setApprovalStatus(workerId: string, approvalStatus: "APPROVED" | "REJECTED" | "PENDING"): Promise<void> {
     await executionApi.patch(`/api/worker-cv/${workerId}/approval`, { approvalStatus });
+  },
+
+  async getWorkersForMonitor(): Promise<WorkerMonitorEntry[]> {
+    const res = await executionApi.get<WorkerMonitorEntry[]>("/api/worker-cv/monitor");
+    return res.data;
+  },
+
+  async setBanStatus(workerId: string, banned: boolean): Promise<void> {
+    await executionApi.patch(`/api/worker-cv/${workerId}/ban`, { banned });
   },
 };

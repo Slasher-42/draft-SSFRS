@@ -25,6 +25,8 @@ public class EvaluatorClaimResponse {
     private String workerResponse;
     private String aiMediationReport;
     private String constructionLocation;
+    private String projectTitle;
+    private String projectStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

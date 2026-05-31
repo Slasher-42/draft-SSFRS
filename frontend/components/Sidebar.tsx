@@ -22,6 +22,7 @@ import {
   GraduationCap,
   Award,
   ShieldCheck,
+  ShieldAlert,
   Wallet,
   ClipboardCheck,
   RefreshCw,
@@ -65,12 +66,16 @@ function getNavItems(role: string): NavItem[] {
         { label: "Dashboard", href: "/dashboard/evaluator", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/evaluator/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
         { label: "Submitted Claims", href: "/dashboard/evaluator/claims", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Claim Monitor", href: "/dashboard/evaluator/claim-monitor", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Messaging", href: "/dashboard/evaluator/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "REFUND_OFFICE":
       return [
         { label: "Dashboard", href: "/dashboard/refund-office", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/refund-office/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
         { label: "Refund Claims", href: "/dashboard/refund-office/claims", icon: <RefreshCw className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Refund Action", href: "/dashboard/refund-office/refund-action", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Messaging", href: "/dashboard/refund-office/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "ADMIN":
       return [
@@ -78,6 +83,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="h-5 w-5 flex-shrink-0" /> },
         { label: "Projects", href: "/dashboard/admin/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
         { label: "System Alumni", href: "/dashboard/admin/alumni", icon: <Award className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Workers Monitor", href: "/dashboard/admin/workers-monitor", icon: <ShieldAlert className="h-5 w-5 flex-shrink-0" /> },
         { label: "Contract Validation", href: "/dashboard/admin/contracts", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/admin/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
       ];

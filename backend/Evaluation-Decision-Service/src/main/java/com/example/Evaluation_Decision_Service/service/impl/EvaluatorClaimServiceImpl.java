@@ -126,6 +126,8 @@ public class EvaluatorClaimServiceImpl implements EvaluatorClaimService {
                 .workerResponse(c.getWorkerResponse())
                 .aiMediationReport(c.getAiMediationReport())
                 .constructionLocation(project != null ? project.getConstructionLocation() : null)
+                .projectTitle(project != null ? project.getTitle() : null)
+                .projectStatus(project != null ? project.getStatus() : null)
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

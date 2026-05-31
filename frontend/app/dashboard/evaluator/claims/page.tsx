@@ -4,11 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle, XCircle, MapPin, MessageSquare, ChevronDown, ChevronUp,
-  AlertTriangle, Eye, Filter, RefreshCw,
+  AlertTriangle, Eye, Filter,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { evaluatorService, type EvaluatorClaimResponse, type MessageEvidenceItem } from "@/lib/evaluatorService";
-import { refundService } from "@/lib/refundService";
 import { aiService, type ImageVerificationResult } from "@/lib/aiService";
 
 type StatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "REFUND_INITIATED" | "REFUNDED";
@@ -49,7 +48,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lon: numb
 export default function EvaluatorClaimsPage() {
   const [claims, setClaims] = useState<EvaluatorClaimResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("PENDING");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [geoResults, setGeoResults] = useState<Record<string, GeoValidationResult>>({});
   const [geoLoading, setGeoLoading] = useState<Record<string, boolean>>({});
@@ -159,19 +158,6 @@ export default function EvaluatorClaimsPage() {
     }
   };
 
-  const handleInitiateRefund = async (id: string) => {
-    setActionLoading(prev => ({ ...prev, [id]: true }));
-    try {
-      const updated = await refundService.initiateRefund(id);
-      setClaims(prev => prev.map(c => c.id === id ? updated : c));
-      toast.success("Refund process initiated. Refund office notified.");
-    } catch {
-      toast.error("Failed to initiate refund process.");
-    } finally {
-      setActionLoading(prev => ({ ...prev, [id]: false }));
-    }
-  };
-
   const handleReject = async (id: string) => {
     setActionLoading(prev => ({ ...prev, [id]: true }));
     try {
@@ -209,6 +195,23 @@ export default function EvaluatorClaimsPage() {
     return (
       <span className="text-xs px-2 py-0.5 rounded-full font-medium text-white"
         style={{ backgroundColor: style.bg }}>
+        {style.text}
+      </span>
+    );
+  };
+
+  const projectStatusBadge = (s: string | null) => {
+    if (!s) return null;
+    const map: Record<string, { bg: string; color: string; text: string }> = {
+      OPEN:      { bg: "#22c55e20", color: "#22c55e", text: "Project: Open" },
+      ASSIGNED:  { bg: "#3b82f620", color: "#3b82f6", text: "Project: Assigned" },
+      COMPLETED: { bg: "#8b5cf620", color: "#8b5cf6", text: "Project: Completed" },
+      FAILED:    { bg: "#ef444420", color: "#ef4444", text: "Project: Failed" },
+    };
+    const style = map[s] ?? { bg: "#6b728020", color: "#6b7280", text: `Project: ${s}` };
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+        style={{ backgroundColor: style.bg, color: style.color }}>
         {style.text}
       </span>
     );
@@ -274,6 +277,7 @@ export default function EvaluatorClaimsPage() {
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {statusBadge(claim.status)}
+                      {projectStatusBadge(claim.projectStatus)}
                       {isConstruction && (
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                           style={{ backgroundColor: "var(--color-neutral-100)", color: "var(--color-foreground)" }}>
@@ -282,7 +286,7 @@ export default function EvaluatorClaimsPage() {
                       )}
                     </div>
                     <p className="text-sm font-medium truncate" style={{ color: "var(--color-foreground)" }}>
-                      Project: {claim.projectId.slice(0, 8)}…
+                      {claim.projectTitle ?? `Project ${claim.projectId.slice(0, 8)}…`}
                     </p>
                     <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                       Filed {new Date(claim.createdAt).toLocaleDateString()} · Provider: {claim.providerId.slice(0, 8)}…
@@ -585,24 +589,12 @@ export default function EvaluatorClaimsPage() {
                         )}
 
                         {claim.status === "APPROVED" && (
-                          <div className="flex flex-col gap-2 pt-2">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4" style={{ color: "#22c55e" }} />
-                              <p className="text-sm font-medium" style={{ color: "#16a34a" }}>
-                                This claim has been approved.
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleInitiateRefund(claim.id)}
-                              disabled={!!actionLoading[claim.id]}
-                              className="flex items-center justify-center gap-2 rounded-lg py-2 px-4 text-sm font-medium text-white transition disabled:opacity-50 w-full"
-                              style={{ backgroundColor: "#6366f1" }}>
-                              {actionLoading[claim.id] ? (
-                                <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                              ) : (
-                                <><RefreshCw className="h-4 w-4" /> Start Refund Process</>
-                              )}
-                            </button>
+                          <div className="flex items-center gap-2 pt-2 rounded-lg p-3"
+                            style={{ backgroundColor: "color-mix(in srgb, #22c55e 10%, transparent)" }}>
+                            <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: "#22c55e" }} />
+                            <p className="text-sm font-medium" style={{ color: "#16a34a" }}>
+                              Claim approved — refund process is being initiated automatically.
+                            </p>
                           </div>
                         )}
 
@@ -617,12 +609,42 @@ export default function EvaluatorClaimsPage() {
                         )}
 
                         {claim.status === "REFUNDED" && (
-                          <div className="flex items-center gap-2 pt-2 rounded-lg p-3"
-                            style={{ backgroundColor: "color-mix(in srgb, #0ea5e9 10%, transparent)" }}>
-                            <CheckCircle className="h-4 w-4" style={{ color: "#0ea5e9" }} />
-                            <p className="text-sm font-medium" style={{ color: "#0ea5e9" }}>
-                              Refund completed — provider has been reimbursed.
-                            </p>
+                          <div className="pt-2 space-y-2">
+                            <div className="flex items-center gap-2 rounded-lg p-3"
+                              style={{ backgroundColor: "color-mix(in srgb, #0ea5e9 10%, transparent)" }}>
+                              <CheckCircle className="h-4 w-4 flex-shrink-0" style={{ color: "#0ea5e9" }} />
+                              <p className="text-sm font-medium" style={{ color: "#0ea5e9" }}>
+                                Refund completed — provider was reimbursed.
+                              </p>
+                            </div>
+                            {/* Show what happened to the project after the refund */}
+                            {claim.projectStatus === "ASSIGNED" && (
+                              <div className="flex items-start gap-2 rounded-lg p-3 border"
+                                style={{ borderColor: "#3b82f640", backgroundColor: "#3b82f610" }}>
+                                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: "#3b82f6" }} />
+                                <p className="text-xs" style={{ color: "#3b82f6" }}>
+                                  This project was reposted and a new worker has been assigned. A fresh claim may be filed if this worker also fails.
+                                </p>
+                              </div>
+                            )}
+                            {claim.projectStatus === "FAILED" && (
+                              <div className="flex items-start gap-2 rounded-lg p-3 border"
+                                style={{ borderColor: "#ef444440", backgroundColor: "#ef444410" }}>
+                                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: "#ef4444" }} />
+                                <p className="text-xs" style={{ color: "#ef4444" }}>
+                                  This project was reposted and has failed again. Check the Pending filter for the new active claim.
+                                </p>
+                              </div>
+                            )}
+                            {claim.projectStatus === "OPEN" && (
+                              <div className="flex items-start gap-2 rounded-lg p-3 border"
+                                style={{ borderColor: "#22c55e40", backgroundColor: "#22c55e10" }}>
+                                <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: "#22c55e" }} />
+                                <p className="text-xs" style={{ color: "#22c55e" }}>
+                                  Project is reposted and open. Provider has re-locked funds — awaiting admin assignment.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
 

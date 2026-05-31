@@ -1,6 +1,7 @@
 package com.example.ProjectWorker_Execution_Service.controller;
 
 import com.example.ProjectWorker_Execution_Service.dto.WorkerCvResponse;
+import com.example.ProjectWorker_Execution_Service.dto.WorkerMonitorEntry;
 import com.example.ProjectWorker_Execution_Service.exception.ForbiddenException;
 import com.example.ProjectWorker_Execution_Service.security.UserPrincipal;
 import com.example.ProjectWorker_Execution_Service.service.WorkerCvService;
@@ -52,6 +53,31 @@ public class WorkerCvController {
             throw new ForbiddenException("Only admins can view all worker CVs.");
         }
         return ResponseEntity.ok(workerCvService.getAllCvs());
+    }
+
+    @GetMapping("/api/worker-cv/monitor")
+    public ResponseEntity<List<WorkerMonitorEntry>> getWorkersForMonitor(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can access the worker monitor.");
+        }
+        return ResponseEntity.ok(workerCvService.getWorkersForMonitor());
+    }
+
+    @PatchMapping("/api/worker-cv/{workerId}/ban")
+    public ResponseEntity<Void> setBanStatus(
+            @PathVariable String workerId,
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (!"ADMIN".equals(principal.getRole())) {
+            throw new ForbiddenException("Only admins can ban or unban workers.");
+        }
+        Object val = body.get("banned");
+        if (val == null) {
+            throw new IllegalArgumentException("Missing 'banned' field.");
+        }
+        workerCvService.setBanStatus(workerId, Boolean.parseBoolean(val.toString()));
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/api/worker-cv/{workerId}/approval")
