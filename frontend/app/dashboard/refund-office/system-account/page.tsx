@@ -38,16 +38,16 @@ export default function SystemAccountPage() {
   const stats = data
     ? [
         {
-          label: "Total Blocked Amount",
+          label: "Total Locked Amount",
           value: fmt(data.totalBlockedAmount),
-          sub: "Funds locked in active projects",
+          sub: "Sum of budgets for all worker-assigned projects",
           icon: <Lock className="h-5 w-5" style={{ color: "#f59e0b" }} />,
           color: "#f59e0b",
         },
         {
-          label: "Accounts with Pending Funds",
+          label: "Accounts Holding Funds",
           value: data.accountsWithPendingFunds.toString(),
-          sub: "Providers with money in escrow",
+          sub: "Accounts with non-zero balance",
           icon: <Users className="h-5 w-5" style={{ color: "#6366f1" }} />,
           color: "#6366f1",
         },
@@ -120,8 +120,8 @@ export default function SystemAccountPage() {
             <ul className="space-y-2 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: "#6366f1" }} />
-                When a provider posts a project and a worker is assigned, the project budget is
-                locked in the provider's account as <strong style={{ color: "var(--color-foreground)" }}>Pending Balance</strong>.
+                When a provider funds a project, the budget is deposited into their system account
+                and held until the project concludes (success or refund).
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: "#22c55e" }} />

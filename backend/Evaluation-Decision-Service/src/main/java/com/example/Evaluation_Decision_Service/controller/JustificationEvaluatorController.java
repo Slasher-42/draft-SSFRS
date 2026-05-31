@@ -6,6 +6,7 @@ import com.example.Evaluation_Decision_Service.model.JustificationStatus;
 import com.example.Evaluation_Decision_Service.model.WorkerJustification;
 import com.example.Evaluation_Decision_Service.repository.ClaimRepository;
 import com.example.Evaluation_Decision_Service.repository.WorkerJustificationRepository;
+import com.example.Evaluation_Decision_Service.service.S3PresignService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class JustificationEvaluatorController {
     private final WorkerJustificationRepository justificationRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final JavaMailSender mailSender;
+    private final S3PresignService s3PresignService;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Value("${spring.mail.username}")
@@ -179,7 +181,12 @@ public class JustificationEvaluatorController {
                 .claimCreatedAt(c.getCreatedAt())
                 .justificationId(j != null ? j.getId() : null)
                 .justificationDescription(j != null ? j.getDescription() : null)
-                .evidenceUrls(j != null ? j.getEvidenceUrls() : List.of())
+                .evidenceUrls(j != null
+                        ? j.getEvidenceUrls().stream()
+                                .map(s3PresignService::generatePresignedUrl)
+                                .filter(java.util.Objects::nonNull)
+                                .collect(java.util.stream.Collectors.toList())
+                        : List.of())
                 .justificationStatus(j != null ? j.getStatus() : null)
                 .evaluatorNotes(j != null ? j.getEvaluatorNotes() : null)
                 .justificationCreatedAt(j != null ? j.getCreatedAt() : null)

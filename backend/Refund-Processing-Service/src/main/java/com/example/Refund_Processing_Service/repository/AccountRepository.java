@@ -13,8 +13,13 @@ public interface AccountRepository extends JpaRepository<Account, String> {
 
     boolean existsByAccountNumber(String accountNumber);
 
-    long countByPendingBalanceGreaterThan(BigDecimal amount);
+    long countByBalanceGreaterThan(BigDecimal amount);
 
-    @Query("SELECT COALESCE(SUM(a.pendingBalance), 0) FROM Account a")
-    BigDecimal sumPendingBalance();
+    /** Total money held across all accounts in the system. */
+    @Query("SELECT COALESCE(SUM(a.balance), 0) FROM Account a")
+    BigDecimal sumAllBalances();
+
+    /** Number of accounts that currently hold funds. */
+    @Query("SELECT COUNT(a) FROM Account a WHERE a.balance > 0")
+    long countAccountsWithFunds();
 }

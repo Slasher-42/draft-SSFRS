@@ -71,27 +71,33 @@ public class JustificationController {
     }
 
     private List<String> uploadFiles(List<MultipartFile> files) {
-        List<String> urls = new ArrayList<>();
-        if (files == null) return urls;
+        List<String> keys = new ArrayList<>();
+        if (files == null) return keys;
         for (MultipartFile f : files) {
             if (f != null && !f.isEmpty()) {
                 try {
-                    String key = "justifications/" + java.util.UUID.randomUUID() + "_" + f.getOriginalFilename();
-                    String url = s3UploadService.uploadFile(f, key);
-                    urls.add(url);
+                    // uploadFile(file, folder) appends its own UUID prefix — pass the folder only
+                    String key = s3UploadService.uploadFile(f, "justifications");
+                    keys.add(key);
                 } catch (Exception ignored) {}
             }
         }
-        return urls;
+        return keys;
     }
 
     private JustificationResponse toResponse(WorkerJustification j) {
+        // Convert stored S3 keys to time-limited presigned URLs (same pattern as claim service)
+        List<String> presignedUrls = j.getEvidenceUrls().stream()
+                .map(s3UploadService::generatePresignedUrl)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList());
+
         return JustificationResponse.builder()
                 .id(j.getId())
                 .claimId(j.getClaimId())
                 .workerId(j.getWorkerId())
                 .description(j.getDescription())
-                .evidenceUrls(j.getEvidenceUrls())
+                .evidenceUrls(presignedUrls)
                 .status(j.getStatus())
                 .evaluatorNotes(j.getEvaluatorNotes())
                 .createdAt(j.getCreatedAt())
