@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
@@ -32,12 +31,12 @@ public class CacheConfig implements CachingConfigurer {
 
     @Bean
     public RedisCacheConfiguration redisCacheConfiguration() {
-        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
-                .allowIfSubType("com.example.User_Management_Service")
-                .allowIfSubType("java.util")
-                .allowIfSubType("java.time")
+        // Allow all types — cache is internal, not exposed to untrusted input
+        var ptv = BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType(Object.class)
                 .build();
 
+        // findAndRegisterModules() picks up Java-time support automatically
         ObjectMapper mapper = new ObjectMapper()
                 .findAndRegisterModules()
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -61,7 +60,6 @@ public class CacheConfig implements CachingConfigurer {
                 .build();
     }
 
-    /** If Redis is down, log a warning and fall through to the real method — no 500s. */
     @Override
     public CacheErrorHandler errorHandler() {
         return new CacheErrorHandler() {

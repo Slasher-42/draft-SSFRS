@@ -47,15 +47,26 @@ export default function EvaluatorJustificationsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Resolve user names using the public GET /api/users/{id} endpoint —
+  // avoids the admin-only /api/admin/users which would 401 an evaluator.
   useEffect(() => {
-    api.get<{ id: string; fullName: string; email: string }[]>("/api/admin/users")
-      .then((r) => {
-        const m: Record<string, UserInfo> = {};
-        r.data.forEach((u) => { m[u.id] = { fullName: u.fullName, email: u.email }; });
-        setUserMap(m);
-      })
-      .catch(() => {});
-  }, []);
+    if (items.length === 0) return;
+    const uniqueIds = [...new Set(items.flatMap(i => [i.workerId, i.providerId].filter(Boolean)))];
+    Promise.allSettled(
+      uniqueIds.map((id) =>
+        api.get<{ id: string; fullName: string; email: string }>(`/api/users/${id}`)
+          .then((r) => ({ id, fullName: r.data.fullName, email: r.data.email }))
+      )
+    ).then((results) => {
+      const m: Record<string, UserInfo> = {};
+      results.forEach((r) => {
+        if (r.status === "fulfilled") {
+          m[r.value.id] = { fullName: r.value.fullName, email: r.value.email };
+        }
+      });
+      setUserMap(m);
+    });
+  }, [items]);
 
   const handleSendEmail = async (item: JustificationWithClaimDto) => {
     const worker = userMap[item.workerId];

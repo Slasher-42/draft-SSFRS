@@ -25,90 +25,130 @@ class ChatResponse(BaseModel):
     response: str
 
 
-def _get_json(url: str, internal_key: str) -> list:
-    """Make a GET request with the internal key header, return parsed JSON or empty list."""
-    req = urllib.request.Request(
-        url,
-        headers={"X-Internal-Key": internal_key},
-    )
-    with urllib.request.urlopen(req, timeout=4) as resp:
+# ── internal HTTP helpers ─────────────────────────────────────────────────────
+
+def _get_json(path: str) -> object:
+    url = f"{settings.service2_base_url}{path}"
+    req = urllib.request.Request(url, headers={"X-Internal-Key": settings.internal_api_key})
+    with urllib.request.urlopen(req, timeout=5) as resp:
         return json.loads(resp.read().decode())
 
 
-def _fetch_available_projects() -> str:
-    """Fetch available/open projects from the Execution Service."""
+def _fetch_worker_context(worker_id: str) -> str:
+    """
+    Returns a text block describing this worker's assigned projects and open opportunities.
+    """
     try:
-        url = f"{settings.service2_base_url}/api/projects/available-for-ai"
-        projects = _get_json(url, settings.internal_api_key)
+        data = _get_json(f"/api/internal/worker-context/{worker_id}")
+        assigned = data.get("assignedProjects", [])
+        open_projects = data.get("openProjects", [])
+
+        lines = []
+
+        if assigned:
+            lines.append("=== YOUR ASSIGNED PROJECTS ===")
+            for p in assigned:
+                status = p.get("status", "UNKNOWN")
+                lines.append(
+                    f"- [{status}] {p.get('title', 'Untitled')} "
+                    f"| Category: {p.get('category', '?')} "
+                    f"| Budget: ${p.get('budget', '?')} "
+                    f"| Deadline: {p.get('deadline', '?')} "
+                    f"| Location: {p.get('constructionLocation') or 'Not specified'}"
+                )
+                if p.get("scopeOfWork"):
+                    lines.append(f"  Scope: {p['scopeOfWork'][:200]}")
+        else:
+            lines.append("=== YOUR ASSIGNED PROJECTS ===")
+            lines.append("You are not currently assigned to any project.")
+
+        if open_projects:
+            lines.append("\n=== OPEN PROJECTS YOU CAN APPLY FOR ===")
+            for p in open_projects[:15]:
+                lines.append(
+                    f"- {p.get('title', 'Untitled')} "
+                    f"| Category: {p.get('category', '?')} "
+                    f"| Skills needed: {p.get('requiredSkills', '?')} "
+                    f"| Budget: ${p.get('budget', '?')} "
+                    f"| Deadline: {p.get('deadline', '?')}"
+                )
+        else:
+            lines.append("\n=== OPEN PROJECTS ===")
+            lines.append("There are no open projects in the system right now.")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"(Live project data unavailable: {e})"
+
+
+def _fetch_provider_context(provider_id: str) -> str:
+    """
+    Returns a text block describing this provider's projects and their workers.
+    """
+    try:
+        data = _get_json(f"/api/internal/provider-context/{provider_id}")
+        projects = data.get("myProjects", [])
+
         if not projects:
-            return "There are currently no open projects in the system."
-        lines = ["Current open projects in the system:"]
-        for p in projects[:20]:
+            return "=== YOUR PROJECTS ===\nYou have not posted any projects yet."
+
+        lines = ["=== YOUR PROJECTS ==="]
+        for p in projects:
+            status = p.get("status", "UNKNOWN")
+            worker = p.get("assignedWorkerId", "")
             lines.append(
-                f"- [{p.get('category', 'General')}] {p.get('title', 'Untitled')} "
-                f"| Budget: {p.get('budget', '?')} | Location: {p.get('constructionLocation') or 'Not specified'}"
+                f"- [{status}] {p.get('title', 'Untitled')} "
+                f"| Budget: ${p.get('budget', '?')} "
+                f"| Deadline: {p.get('deadline', '?')} "
+                f"| Worker assigned: {'Yes (ID: ' + worker[:8] + '…)' if worker else 'No'}"
             )
         return "\n".join(lines)
-    except Exception:
-        pass
-    return "Project data is temporarily unavailable."
+    except Exception as e:
+        return f"(Live project data unavailable: {e})"
 
 
-def _fetch_available_workers() -> str:
-    """Fetch rated workers from the Execution Service."""
-    try:
-        url = f"{settings.service2_base_url}/api/workers/available-for-ai"
-        workers = _get_json(url, settings.internal_api_key)
-        if not workers:
-            return "There are currently no registered workers in the system."
-        lines = ["Workers currently registered in the system:"]
-        for w in workers[:20]:
-            lines.append(
-                f"- {w.get('fullName', 'Unknown')} | Specialization: {w.get('specialization') or 'General'} "
-                f"| AI Score: {w.get('overallScore', 'Not rated')} | Status: {w.get('status', 'Active')}"
-            )
-        return "\n".join(lines)
-    except Exception:
-        pass
-    return "Worker data is temporarily unavailable."
+# ── system prompt builder ─────────────────────────────────────────────────────
 
-
-def _build_system_prompt(user_role: str) -> str:
+def _build_system_prompt(user_role: str, user_id: Optional[str]) -> str:
     if user_role == "WORKER":
-        project_context = _fetch_available_projects()
+        context = _fetch_worker_context(user_id) if user_id else "(No user ID provided — cannot fetch personal data.)"
         return (
-            "You are the SSFRS (Service Failure Refund System) AI Assistant, available exclusively to workers. "
-            "You are helpful, knowledgeable, and friendly. You can answer questions about the platform, "
-            "about the construction and service industry, career advice, and any general topic the worker asks about.\n\n"
-            "SYSTEM CONTEXT — LIVE DATA:\n"
-            f"{project_context}\n\n"
-            "When asked about projects, use the live data above. "
-            "When asked about general knowledge, answer freely and helpfully. "
-            "Keep responses concise and practical."
+            "You are the SSFRS (Service Failure Refund System) AI Assistant for workers. "
+            "You have access to real-time data about this worker's project assignments and available opportunities. "
+            "Be helpful, specific, and factual — always reference the live data below when answering questions "
+            "about projects, assignments, or status. For questions outside the platform (career advice, "
+            "industry knowledge, general topics), answer freely and helpfully.\n\n"
+            "LIVE SYSTEM DATA FOR THIS WORKER:\n"
+            f"{context}\n\n"
+            "When the worker asks 'am I assigned to a project?', 'what is my project status?', or similar — "
+            "use the ASSIGNED PROJECTS section above to answer directly and accurately. "
+            "If they ask about available opportunities, use the OPEN PROJECTS section."
         )
     else:  # PROVIDER
-        worker_context = _fetch_available_workers()
+        context = _fetch_provider_context(user_id) if user_id else "(No user ID provided — cannot fetch personal data.)"
         return (
-            "You are the SSFRS (Service Failure Refund System) AI Assistant, available exclusively to project providers. "
-            "You are helpful, knowledgeable, and friendly. You can answer questions about the platform, "
-            "about hiring and managing workers, project management, and any general topic the provider asks about.\n\n"
-            "SYSTEM CONTEXT — LIVE DATA:\n"
-            f"{worker_context}\n\n"
-            "When asked about workers or fields of expertise, use the live data above. "
-            "When asked about general knowledge, answer freely and helpfully. "
-            "Keep responses concise and practical."
+            "You are the SSFRS (Service Failure Refund System) AI Assistant for project providers. "
+            "You have access to real-time data about this provider's posted projects. "
+            "Be helpful, specific, and factual — always reference the live data below when answering questions "
+            "about projects, workers, or status. For questions outside the platform, answer freely.\n\n"
+            "LIVE SYSTEM DATA FOR THIS PROVIDER:\n"
+            f"{context}\n\n"
+            "When the provider asks about their projects, worker assignments, or project status — "
+            "use the data above to answer directly and accurately."
         )
 
+
+# ── endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=ChatResponse)
 def chat(request: ChatRequest):
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages cannot be empty")
 
-    system_prompt = _build_system_prompt(request.user_role)
+    system_prompt = _build_system_prompt(request.user_role, request.user_id)
 
     groq_messages = [{"role": "system", "content": system_prompt}]
-    for m in request.messages[-20:]:  # keep last 20 turns to stay within token limits
+    for m in request.messages[-20:]:
         groq_messages.append({"role": m.role, "content": m.content})
 
     try:
