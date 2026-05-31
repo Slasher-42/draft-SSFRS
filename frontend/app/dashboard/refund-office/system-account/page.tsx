@@ -45,9 +45,9 @@ export default function SystemAccountPage() {
           color: "#f59e0b",
         },
         {
-          label: "Accounts Holding Funds",
+          label: "Active Assigned Projects",
           value: data.accountsWithPendingFunds.toString(),
-          sub: "Accounts with non-zero balance",
+          sub: "Projects currently locked with a worker",
           icon: <Users className="h-5 w-5" style={{ color: "#6366f1" }} />,
           color: "#6366f1",
         },
