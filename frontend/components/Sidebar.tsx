@@ -27,6 +27,8 @@ import {
   ClipboardCheck,
   RefreshCw,
   ScrollText,
+  Scale,
+  Landmark,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -67,6 +69,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "Dashboard", href: "/dashboard/evaluator", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
         { label: "My Profile", href: "/dashboard/evaluator/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
         { label: "Submitted Claims", href: "/dashboard/evaluator/claims", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Justifications", href: "/dashboard/evaluator/justifications", icon: <Scale className="h-5 w-5 flex-shrink-0" /> },
         { label: "Claim Monitor", href: "/dashboard/evaluator/claim-monitor", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/evaluator/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
       ];
@@ -76,6 +79,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "My Profile", href: "/dashboard/refund-office/profile", icon: <User className="h-5 w-5 flex-shrink-0" /> },
         { label: "Refund Claims", href: "/dashboard/refund-office/claims", icon: <RefreshCw className="h-5 w-5 flex-shrink-0" /> },
         { label: "Refund Action", href: "/dashboard/refund-office/refund-action", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "System Account", href: "/dashboard/refund-office/system-account", icon: <Landmark className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/refund-office/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "ADMIN":
