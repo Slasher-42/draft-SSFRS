@@ -26,6 +26,7 @@ import {
   Wallet,
   ClipboardCheck,
   RefreshCw,
+  ScrollText,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -85,6 +86,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "System Alumni", href: "/dashboard/admin/alumni", icon: <Award className="h-5 w-5 flex-shrink-0" /> },
         { label: "Workers Monitor", href: "/dashboard/admin/workers-monitor", icon: <ShieldAlert className="h-5 w-5 flex-shrink-0" /> },
         { label: "Contract Validation", href: "/dashboard/admin/contracts", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Audit Log", href: "/dashboard/admin/audit-log", icon: <ScrollText className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/admin/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
       ];
     default:
