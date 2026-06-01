@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { Menu, Bell, Sun, Moon, X, CheckCheck } from "lucide-react";
 import { authService } from "@/lib/authService";
 import { userService } from "@/lib/userService";
-import {
-  notificationService,
-  type NotificationItem,
-} from "@/lib/notificationService";
+import { notificationService, type NotificationItem } from "@/lib/notificationService";
+import { useTranslations } from "next-intl";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -25,18 +24,19 @@ function getRoleAccent(role: string): string {
   }
 }
 
-function getRoleLabel(role: string): string {
+function getRoleLabel(role: string, t: (key: string) => string): string {
   switch (role) {
-    case "PROVIDER":      return "Project Provider";
-    case "WORKER":        return "Worker";
-    case "EVALUATOR":     return "Evaluator";
-    case "REFUND_OFFICE": return "Refund Office";
-    case "ADMIN":         return "Administrator";
+    case "PROVIDER":      return t("roleProvider");
+    case "WORKER":        return t("roleWorker");
+    case "EVALUATOR":     return t("roleEvaluator");
+    case "REFUND_OFFICE": return t("roleRefundOffice");
+    case "ADMIN":         return t("roleAdmin");
     default:              return role;
   }
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  const t = useTranslations("Header");
   const router = useRouter();
 
   const [session, setSession] = useState<{
@@ -154,16 +154,16 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const d = new Date(iso);
     const diff = Date.now() - d.getTime();
     const mins = Math.floor(diff / 60_000);
-    if (mins < 1)  return "Just now";
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1)  return t("justNow");
+    if (mins < 60) return t("minutesAgo", { mins });
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24)  return `${hrs}h ago`;
+    if (hrs < 24)  return t("hoursAgo", { hrs });
     return d.toLocaleDateString();
   };
 
   const initial = session?.fullName?.charAt(0).toUpperCase() || "U";
   const accent = session?.role ? getRoleAccent(session.role) : "#6B7280";
-  const roleLabel = session?.role ? getRoleLabel(session.role) : "";
+  const roleLabel = session?.role ? getRoleLabel(session.role, t) : "";
 
   return (
     <header
@@ -201,6 +201,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right side controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginLeft: "auto" }}>
+        {/* Language switcher */}
+        <LanguageSwitcher variant="light" />
+
         {/* Dark mode toggle */}
         <button
           onClick={toggleDarkMode}
@@ -298,7 +301,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <Bell className="h-4 w-4" style={{ color: "var(--color-muted-foreground)" }} />
                   <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-foreground)" }}>
-                    Notifications
+                    {t("notifications")}
                   </span>
                   {unreadCount > 0 && (
                     <span
@@ -312,7 +315,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         border: "1px solid #ef444430",
                       }}
                     >
-                      {unreadCount} new
+                      {unreadCount} {t("new")}
                     </span>
                   )}
                 </div>
@@ -335,7 +338,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       }}
                     >
                       <CheckCheck className="h-3 w-3" />
-                      Mark all read
+                      {t("markAllRead")}
                     </button>
                   )}
                   <button
@@ -369,12 +372,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       borderRadius: "50%",
                       animation: "spin 0.8s linear infinite",
                     }} />
-                    <p style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>Loading…</p>
+                    <p style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>{t("loading")}</p>
                   </div>
                 ) : notifications.length === 0 ? (
                   <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
                     <Bell className="h-8 w-8" style={{ color: "var(--color-border)", margin: "0 auto 8px" }} />
-                    <p style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>No notifications yet</p>
+                    <p style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>{t("noNotifications")}</p>
                   </div>
                 ) : (
                   notifications.map((notif) => (
