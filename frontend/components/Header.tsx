@@ -391,7 +391,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         display: "flex",
                         flexDirection: "column",
                         gap: "0.25rem",
-                        borderBottom: "1px solid var(--color-border)",
                         backgroundColor: notif.read ? "transparent" : `${accent}08`,
                         border: "none",
                         borderBottom: "1px solid var(--color-border)",

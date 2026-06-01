@@ -183,7 +183,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
   const navItems = getNavItems(session?.role || "", t);
   const initial = session?.fullName?.charAt(0).toUpperCase() || "U";
-  const handleLogout = () => { authService.logout(); router.push("/login" as Parameters<typeof router.push>[0]); };
+  const handleLogout = () => { authService.logout(); router.push("/login"); };
 
   return (
     <>
@@ -334,7 +334,6 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                     <span
                       style={{
                         color: isActive ? accentColor : "inherit",
-                        marginRight: collapsed ? 0 : "0.75rem",
                         marginLeft: collapsed ? "auto" : 0,
                         marginRight: collapsed ? "auto" : "0.75rem",
                         display: "flex",
