@@ -2,11 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Shield, CheckCircle, AlertTriangle, ChevronRight } from "lucide-react";
+import {
+  User, Mail, Shield, CheckCircle, AlertTriangle, ChevronRight,
+  Video, ClipboardList, Calendar, Zap,
+} from "lucide-react";
 import Link from "next/link";
 import { authService } from "@/lib/authService";
 import { userService, type UserProfile, type WorkerProfile } from "@/lib/userService";
 import { workerCvService, type WorkerCvResponse } from "@/lib/workerCvService";
+
+const ACCENT = "#7C3AED";
+const ACCENT_LIGHT = "#F5F3FF";
+
+const CARD_STYLE: React.CSSProperties = {
+  backgroundColor: "var(--color-card)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 14,
+  boxShadow: "var(--shadow-card)",
+};
 
 interface CompletionItem {
   label: string;
@@ -61,184 +74,277 @@ export default function WorkerDashboard() {
 
   const { pct, items } = calcCompletion(user, profile, cv);
   const canBeRated = pct >= 80;
-
   const barColor = pct < 50 ? "#ef4444" : pct < 80 ? "#f59e0b" : "#22c55e";
+  const barGrad = pct < 50
+    ? "linear-gradient(90deg, #ef4444, #f87171)"
+    : pct < 80
+    ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
+    : "linear-gradient(90deg, #22c55e, #4ade80)";
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+
+  const accountFields = [
+    { icon: <User className="h-3.5 w-3.5" />, label: "Full Name", value: session?.fullName || "—" },
+    { icon: <Mail className="h-3.5 w-3.5" />, label: "Email Address", value: session?.email || "—" },
+    { icon: <Shield className="h-3.5 w-3.5" />, label: "Role", value: "Worker" },
+  ];
+
+  const actions = [
+    { label: "View & Edit Profile", href: "/dashboard/worker/profile", icon: <User className="h-4 w-4" style={{ color: ACCENT }} />, special: false },
+    { label: "Manage My CV", href: "/dashboard/worker/cv", icon: <ClipboardList className="h-4 w-4" style={{ color: ACCENT }} />, special: false },
+    ...(canBeRated ? [{ label: "Start AI Interview", href: "/dashboard/worker/interview", icon: <Video className="h-4 w-4" style={{ color: ACCENT }} />, special: true }] : []),
+  ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 style={{ color: "var(--color-primary-800)" }}>
-          Welcome back, {session?.fullName || "Worker"}
-        </h3>
-        <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-          Manage your profile, CV, and interview from here.
-        </p>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: 1100 }}>
 
-      {/* Profile Completion Card */}
+      {/* ── Hero ── */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border p-6"
-        style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
+        transition={{ duration: 0.3 }}
+        style={{
+          borderRadius: 18,
+          padding: "2rem 2.5rem",
+          minHeight: 168,
+          position: "relative",
+          overflow: "hidden",
+          background: "linear-gradient(135deg, #3b0764 0%, #5b21b6 55%, #7c3aed 100%)",
+        }}
       >
-        <div className="flex items-start justify-between mb-4">
+        <div style={{ position: "absolute", right: -50, top: -50, height: 220, width: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.09), transparent)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", right: 100, bottom: -40, height: 160, width: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.06), transparent)", pointerEvents: "none" }} />
+
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <h5 className="font-semibold" style={{ color: "var(--color-foreground)" }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              borderRadius: 999, padding: "0.25rem 0.75rem", marginBottom: "1rem",
+              fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+              backgroundColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.9)",
+              border: "1px solid rgba(255,255,255,0.2)",
+            }}>
+              <User style={{ width: 11, height: 11 }} />
+              Worker
+            </div>
+            <h2 style={{ color: "#fff", fontSize: "1.65rem", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2, marginBottom: "0.375rem" }}>
+              Welcome back, {session?.fullName || "Worker"}
+            </h2>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.875rem" }}>
+              Complete your profile to unlock AI interview and rating.
+            </p>
+            <div style={{ marginTop: "1.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Calendar style={{ width: 13, height: 13, color: "rgba(255,255,255,0.4)" }} />
+              <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>{today}</span>
+            </div>
+          </div>
+
+          {/* Completion pill (desktop) */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: "1.5rem" }}>
+            <span style={{
+              fontSize: "2.5rem", fontWeight: 900, lineHeight: 1,
+              color: loading ? "rgba(255,255,255,0.2)" : (canBeRated ? "#4ade80" : "#facc15"),
+            }}>
+              {loading ? "—" : `${pct}%`}
+            </span>
+            <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>
+              Complete
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Profile Completion Card ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{ ...CARD_STYLE, padding: "1.5rem" }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.13em", color: "var(--color-muted-foreground)", marginBottom: 4 }}>
               Profile Completion
-            </h5>
-            <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+            </p>
+            <p style={{ fontSize: "0.8125rem", color: "var(--color-foreground)" }}>
               {canBeRated
-                ? "You meet the minimum threshold to be rated by AI."
+                ? "You meet the minimum threshold — AI features are available."
                 : `Reach 80% to unlock AI rating and interview. (${80 - pct}% remaining)`}
             </p>
           </div>
-          <span
-            className="text-2xl font-bold"
-            style={{ color: barColor }}
-          >
-            {loading ? "—" : `${pct}%`}
-          </span>
+          {!loading && (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              borderRadius: 999, padding: "0.3rem 0.75rem", flexShrink: 0, marginLeft: "1rem",
+              fontSize: 11, fontWeight: 700,
+              backgroundColor: canBeRated ? "#22c55e18" : "#f59e0b18",
+              color: canBeRated ? "#22c55e" : "#f59e0b",
+              border: `1px solid ${canBeRated ? "#22c55e35" : "#f59e0b35"}`,
+            }}>
+              {canBeRated ? <CheckCircle style={{ width: 12, height: 12 }} /> : <AlertTriangle style={{ width: 12, height: 12 }} />}
+              {canBeRated ? "AI Unlocked" : `${pct}%`}
+            </div>
+          )}
         </div>
 
         {/* Progress bar */}
-        <div className="w-full h-2.5 rounded-full mb-5" style={{ backgroundColor: "var(--color-border)" }}>
+        <div style={{ width: "100%", height: 7, borderRadius: 999, backgroundColor: "var(--color-border)", overflow: "hidden", marginBottom: "1.25rem" }}>
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: loading ? "0%" : `${pct}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="h-2.5 rounded-full"
-            style={{ backgroundColor: barColor }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            style={{
+              height: "100%",
+              borderRadius: 999,
+              background: barGrad,
+              boxShadow: `0 0 10px ${barColor}60`,
+            }}
           />
         </div>
 
-        {/* Status badge */}
-        {!loading && (
-          <div
-            className="flex items-center gap-2 rounded-lg px-3 py-2 mb-4 text-sm"
-            style={{
-              backgroundColor: canBeRated ? "#22c55e15" : "#f59e0b15",
-              border: `1px solid ${canBeRated ? "#22c55e40" : "#f59e0b40"}`,
-              color: canBeRated ? "#22c55e" : "#f59e0b",
-            }}
-          >
-            {canBeRated ? <CheckCircle className="h-4 w-4 flex-shrink-0" /> : <AlertTriangle className="h-4 w-4 flex-shrink-0" />}
-            {canBeRated
-              ? "AI rating & interview are available to you."
-              : "Complete your profile to unlock AI rating and the interview feature."}
-          </div>
-        )}
-
         {/* Checklist */}
-        {!loading && (
-          <div className="space-y-1.5">
+        {loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} style={{ height: 36, borderRadius: 10, backgroundColor: "var(--color-neutral-100)", animation: "pulse 1.5s ease-in-out infinite" }} />
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
             {items.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 transition"
                 style={{
-                  backgroundColor: item.done ? "#22c55e10" : "transparent",
+                  display: "flex", alignItems: "center", gap: "0.75rem",
+                  padding: "0.5625rem 0.75rem",
+                  borderRadius: 10,
+                  textDecoration: "none",
+                  backgroundColor: item.done ? "#22c55e09" : "transparent",
+                  transition: "background-color 0.12s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-neutral-50)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = item.done ? "#22c55e10" : "transparent"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-neutral-50)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = item.done ? "#22c55e09" : "transparent"; }}
               >
-                <div
-                  className="h-4 w-4 rounded-full flex-shrink-0 flex items-center justify-center border"
-                  style={{
-                    borderColor: item.done ? "#22c55e" : "var(--color-border)",
-                    backgroundColor: item.done ? "#22c55e" : "transparent",
-                  }}
-                >
-                  {item.done && <CheckCircle className="h-3 w-3 text-white" />}
+                <div style={{
+                  height: 18, width: 18, borderRadius: "50%", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: `1.5px solid ${item.done ? "#22c55e" : "var(--color-border)"}`,
+                  backgroundColor: item.done ? "#22c55e" : "transparent",
+                }}>
+                  {item.done && <CheckCircle style={{ width: 10, height: 10, color: "#fff" }} />}
                 </div>
-                <span className="flex-1 text-sm" style={{ color: item.done ? "var(--color-foreground)" : "var(--color-muted-foreground)" }}>
+                <span style={{ flex: 1, fontSize: "0.8125rem", color: item.done ? "var(--color-foreground)" : "var(--color-muted-foreground)" }}>
                   {item.label}
                 </span>
-                <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700,
+                  padding: "2px 7px", borderRadius: 999,
+                  backgroundColor: item.done ? "#22c55e18" : "var(--color-neutral-100)",
+                  color: item.done ? "#22c55e" : "var(--color-muted-foreground)",
+                }}>
                   +{item.weight}%
                 </span>
-                {!item.done && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />}
+                {!item.done && (
+                  <ChevronRight style={{ width: 13, height: 13, color: ACCENT, opacity: 0.4, flexShrink: 0 }} />
+                )}
               </Link>
             ))}
           </div>
         )}
       </motion.div>
 
-      {/* Account Info + Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* ── Account Info + Quick Actions ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
+
+        {/* Account Info */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="rounded-xl border p-6 space-y-4"
-          style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
+          transition={{ delay: 0.24 }}
+          style={{ ...CARD_STYLE, padding: "1.5rem" }}
         >
-          <h5 className="font-semibold" style={{ color: "var(--color-foreground)" }}>
+          <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.13em", color: "var(--color-muted-foreground)", marginBottom: "1rem" }}>
             Account Info
-          </h5>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <User className="h-4 w-4 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
-              <span className="text-sm" style={{ color: "var(--color-foreground)" }}>
-                {session?.fullName || "—"}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Mail className="h-4 w-4 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
-              <span className="text-sm" style={{ color: "var(--color-foreground)" }}>
-                {session?.email || "—"}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Shield className="h-4 w-4 flex-shrink-0" style={{ color: "var(--color-neutral-400)" }} />
-              <span className="text-sm" style={{ color: "var(--color-foreground)" }}>
-                Worker
-              </span>
-            </div>
+          </p>
+          <div>
+            {accountFields.map((field, i) => (
+              <div
+                key={field.label}
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.75rem",
+                  padding: "0.75rem 0",
+                  borderBottom: i < accountFields.length - 1 ? "1px solid var(--color-border)" : "none",
+                }}
+              >
+                <div style={{ height: 30, width: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: ACCENT_LIGHT, color: ACCENT, flexShrink: 0 }}>
+                  {field.icon}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-muted-foreground)", marginBottom: 2 }}>{field.label}</p>
+                  <p style={{ fontSize: "0.8125rem", fontWeight: 500, color: "var(--color-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{field.value}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </motion.div>
 
+        {/* Quick Actions */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-xl border p-6 space-y-4"
-          style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
+          transition={{ delay: 0.3 }}
+          style={{ ...CARD_STYLE, padding: "1.5rem" }}
         >
-          <h5 className="font-semibold" style={{ color: "var(--color-foreground)" }}>
+          <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.13em", color: "var(--color-muted-foreground)", marginBottom: "1rem" }}>
             Quick Actions
-          </h5>
-          <div className="space-y-2">
-            <Link
-              href="/dashboard/worker/profile"
-              className="flex items-center gap-3 rounded-lg p-3 transition"
-              style={{ backgroundColor: "var(--color-neutral-50)", color: "var(--color-foreground)" }}
-            >
-              <User className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-              <span className="text-sm font-medium">View &amp; Edit My Profile</span>
-            </Link>
-            <Link
-              href="/dashboard/worker/cv"
-              className="flex items-center gap-3 rounded-lg p-3 transition"
-              style={{ backgroundColor: "var(--color-neutral-50)", color: "var(--color-foreground)" }}
-            >
-              <Shield className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-              <span className="text-sm font-medium">Manage My CV</span>
-            </Link>
-            {canBeRated && (
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {actions.map((action) => (
               <Link
-                href="/dashboard/worker/interview"
-                className="flex items-center gap-3 rounded-lg p-3 transition"
-                style={{ backgroundColor: "#7c3aed15", color: "var(--color-foreground)" }}
+                key={action.href}
+                href={action.href}
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.75rem",
+                  padding: "0.625rem 0.75rem",
+                  borderRadius: 10,
+                  border: action.special ? `1px solid ${ACCENT}35` : "1px solid var(--color-border)",
+                  backgroundColor: action.special ? `${ACCENT}10` : "transparent",
+                  textDecoration: "none",
+                  transition: "background-color 0.12s, border-color 0.12s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = ACCENT_LIGHT;
+                  (e.currentTarget as HTMLElement).style.borderColor = `${ACCENT}40`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = action.special ? `${ACCENT}10` : "transparent";
+                  (e.currentTarget as HTMLElement).style.borderColor = action.special ? `${ACCENT}35` : "var(--color-border)";
+                }}
               >
-                <Shield className="h-4 w-4" style={{ color: "#7c3aed" }} />
-                <span className="text-sm font-medium text-[#7c3aed]">Start AI Interview</span>
+                <div style={{ height: 28, width: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: ACCENT_LIGHT, flexShrink: 0 }}>
+                  {action.icon}
+                </div>
+                <span style={{ flex: 1, fontSize: "0.8125rem", fontWeight: action.special ? 600 : 500, color: action.special ? ACCENT : "var(--color-foreground)" }}>
+                  {action.label}
+                </span>
+                {action.special && <Zap style={{ width: 13, height: 13, color: ACCENT, flexShrink: 0 }} />}
+                <ChevronRight style={{ width: 14, height: 14, color: ACCENT, opacity: action.special ? 0.7 : 0.4, flexShrink: 0 }} />
               </Link>
-            )}
+            ))}
           </div>
         </motion.div>
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 }

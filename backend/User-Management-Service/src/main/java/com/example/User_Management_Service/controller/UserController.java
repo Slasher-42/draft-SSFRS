@@ -11,8 +11,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,6 +27,24 @@ public class UserController {
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable String userId) {
         return ResponseEntity.ok(userService.getUserById(userId));
+    }
+
+    /**
+     * Public – fetch multiple users by comma-separated IDs.
+     * Used by the public homepage to display fresh provider/worker profiles.
+     */
+    @GetMapping("/by-ids")
+    public ResponseEntity<List<UserResponse>> getUsersByIds(@RequestParam("ids") String ids) {
+        List<UserResponse> users = Arrays.stream(ids.split(","))
+                .map(String::trim)
+                .filter(id -> !id.isBlank())
+                .map(id -> {
+                    try { return userService.getUserById(id); }
+                    catch (Exception e) { return null; }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/by-role/{role}")

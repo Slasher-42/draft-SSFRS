@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Sun, Moon, X } from "lucide-react";
+import { Menu, Bell, Sun, Moon, X, CheckCheck } from "lucide-react";
 import { authService } from "@/lib/authService";
 import { userService } from "@/lib/userService";
 import {
@@ -12,6 +12,28 @@ import {
 
 interface HeaderProps {
   onMenuClick: () => void;
+}
+
+function getRoleAccent(role: string): string {
+  switch (role) {
+    case "PROVIDER":      return "#3B82F6";
+    case "WORKER":        return "#8B5CF6";
+    case "ADMIN":         return "#F59E0B";
+    case "EVALUATOR":     return "#14B8A6";
+    case "REFUND_OFFICE": return "#10B981";
+    default:              return "#6B7280";
+  }
+}
+
+function getRoleLabel(role: string): string {
+  switch (role) {
+    case "PROVIDER":      return "Project Provider";
+    case "WORKER":        return "Worker";
+    case "EVALUATOR":     return "Evaluator";
+    case "REFUND_OFFICE": return "Refund Office";
+    case "ADMIN":         return "Administrator";
+    default:              return role;
+  }
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
@@ -35,22 +57,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const load = async () => {
       const s = authService.getSession();
       if (!s) return;
-
-      setSession({
-        fullName: s.fullName,
-        role: s.role,
-        profileImageUrl: s.profileImageUrl ?? null,
-      });
+      setSession({ fullName: s.fullName, role: s.role, profileImageUrl: s.profileImageUrl ?? null });
       setImgError(false);
-
       if (!s.profileImageUrl) {
         try {
           const user = await userService.getUser(s.userId);
           if (user.profileImageUrl) {
             authService.updateSessionImage(user.profileImageUrl);
-            setSession((prev) =>
-              prev ? { ...prev, profileImageUrl: user.profileImageUrl } : prev
-            );
+            setSession((prev) => prev ? { ...prev, profileImageUrl: user.profileImageUrl } : prev);
           }
         } catch {}
       }
@@ -68,7 +82,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
       setSession((prev) => (prev ? { ...prev, profileImageUrl: url } : prev));
       setImgError(false);
     };
-
     window.addEventListener("profileImageUpdated", handleImageUpdate);
     return () => window.removeEventListener("profileImageUpdated", handleImageUpdate);
   }, []);
@@ -83,9 +96,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   useEffect(() => {
     fetchUnreadCount();
     pollRef.current = setInterval(fetchUnreadCount, 15_000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [fetchUnreadCount]);
 
   useEffect(() => {
@@ -106,18 +117,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
         const list = await notificationService.getMyNotifications();
         setNotifications(list);
       } catch {}
-      finally {
-        setLoadingNotifs(false);
-      }
+      finally { setLoadingNotifs(false); }
     }
   };
 
   const handleNotifClick = async (notif: NotificationItem) => {
     if (!notif.read) {
       await notificationService.markRead(notif.id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
-      );
+      setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
       setUnreadCount((c) => Math.max(0, c - 1));
     }
     const link = notificationService.getLinkForNotification(notif);
@@ -143,21 +150,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
     }
   };
 
-  const formatRole = (role: string) => {
-    switch (role) {
-      case "PROVIDER":      return "Project Provider";
-      case "WORKER":        return "Worker";
-      case "EVALUATOR":     return "Evaluator";
-      case "REFUND_OFFICE": return "Refund Office";
-      case "ADMIN":         return "Administrator";
-      default:              return role;
-    }
-  };
-
   const formatTime = (iso: string) => {
     const d = new Date(iso);
-    const now = Date.now();
-    const diff = now - d.getTime();
+    const diff = Date.now() - d.getTime();
     const mins = Math.floor(diff / 60_000);
     if (mins < 1)  return "Just now";
     if (mins < 60) return `${mins}m ago`;
@@ -167,64 +162,108 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   const initial = session?.fullName?.charAt(0).toUpperCase() || "U";
+  const accent = session?.role ? getRoleAccent(session.role) : "#6B7280";
+  const roleLabel = session?.role ? getRoleLabel(session.role) : "";
 
   return (
     <header
-      className="flex items-center justify-between px-4 py-3 md:px-6 flex-shrink-0"
       style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 1.25rem",
+        height: 56,
+        flexShrink: 0,
         backgroundColor: "var(--color-card)",
         borderBottom: "1px solid var(--color-border)",
+        boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
       }}
     >
+      {/* Mobile menu button */}
       <button
-        className="md:hidden h-9 w-9 flex items-center justify-center rounded-lg transition"
-        style={{ color: "var(--color-foreground)" }}
+        className="md:hidden"
         onClick={onMenuClick}
+        style={{
+          height: 36,
+          width: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 8,
+          border: "none",
+          background: "none",
+          cursor: "pointer",
+          color: "var(--color-foreground)",
+        }}
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex items-center gap-2 ml-auto">
+      {/* Right side controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginLeft: "auto" }}>
+        {/* Dark mode toggle */}
         <button
           onClick={toggleDarkMode}
-          className="h-9 w-9 flex items-center justify-center rounded-lg transition"
-          style={{ color: "var(--color-foreground)" }}
+          style={{
+            height: 34,
+            width: 34,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 8,
+            border: "1px solid var(--color-border)",
+            background: "var(--color-muted)",
+            cursor: "pointer",
+            color: "var(--color-foreground)",
+            transition: "border-color 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-neutral-400)")}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
         >
-          {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        <div
-          className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: "var(--color-neutral-200)" }}
-        >
-          {session?.profileImageUrl && !imgError ? (
-            <img
-              src={session.profileImageUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <span
-              className="text-sm font-bold select-none"
-              style={{ color: "var(--color-neutral-600)" }}
-            >
-              {initial}
-            </span>
-          )}
-        </div>
-
+        {/* Notification bell */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={openDropdown}
-            className="h-9 w-9 flex items-center justify-center rounded-lg transition"
-            style={{ color: "var(--color-foreground)" }}
+            style={{
+              height: 34,
+              width: 34,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 8,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-muted)",
+              cursor: "pointer",
+              color: "var(--color-foreground)",
+              position: "relative",
+              transition: "border-color 0.15s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-neutral-400)")}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
               <span
-                className="absolute top-1 right-1 min-w-[16px] h-4 px-[3px] rounded-full
-                           flex items-center justify-center text-[10px] font-bold text-white bg-red-500"
+                style={{
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 3px",
+                  borderRadius: 999,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: "#fff",
+                  backgroundColor: "#ef4444",
+                  border: "1.5px solid var(--color-card)",
+                }}
               >
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
@@ -233,76 +272,144 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
           {dropdownOpen && (
             <div
-              className="absolute right-0 mt-2 w-80 rounded-xl shadow-xl z-50 overflow-hidden"
               style={{
+                position: "absolute",
+                right: 0,
+                top: "calc(100% + 8px)",
+                width: 340,
+                borderRadius: 14,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
+                zIndex: 50,
+                overflow: "hidden",
                 backgroundColor: "var(--color-card)",
                 border: "1px solid var(--color-border)",
-                top: "100%",
               }}
             >
+              {/* Header */}
               <div
-                className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: "1px solid var(--color-border)" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.875rem 1rem",
+                  borderBottom: "1px solid var(--color-border)",
+                }}
               >
-                <span className="text-sm font-semibold" style={{ color: "var(--color-foreground)" }}>
-                  Notifications
-                </span>
-                <div className="flex items-center gap-3">
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Bell className="h-4 w-4" style={{ color: "var(--color-muted-foreground)" }} />
+                  <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-foreground)" }}>
+                    Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: 999,
+                        backgroundColor: "#ef444418",
+                        color: "#ef4444",
+                        border: "1px solid #ef444430",
+                      }}
+                    >
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="text-xs font-medium"
-                      style={{ color: "var(--color-primary-600)" }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: accent,
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                      }}
                     >
+                      <CheckCheck className="h-3 w-3" />
                       Mark all read
                     </button>
                   )}
                   <button
                     onClick={() => setDropdownOpen(false)}
-                    style={{ color: "var(--color-muted-foreground)" }}
+                    style={{
+                      height: 24,
+                      width: 24,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 6,
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--color-muted-foreground)",
+                    }}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
 
-              <div className="overflow-y-auto" style={{ maxHeight: "360px" }}>
+              {/* Body */}
+              <div style={{ maxHeight: 360, overflowY: "auto" }}>
                 {loadingNotifs ? (
-                  <div className="py-8 text-center text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                    Loading…
+                  <div style={{ padding: "2rem 1rem", textAlign: "center" }}>
+                    <div style={{
+                      width: 24, height: 24, margin: "0 auto 8px",
+                      border: `2px solid ${accent}30`,
+                      borderTopColor: accent,
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                    }} />
+                    <p style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>Loading…</p>
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="py-8 text-center text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                    No notifications yet
+                  <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
+                    <Bell className="h-8 w-8" style={{ color: "var(--color-border)", margin: "0 auto 8px" }} />
+                    <p style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>No notifications yet</p>
                   </div>
                 ) : (
                   notifications.map((notif) => (
                     <button
                       key={notif.id}
                       onClick={() => handleNotifClick(notif)}
-                      className="w-full text-left px-4 py-3 flex flex-col gap-1 transition-colors hover:opacity-80"
                       style={{
-                        backgroundColor: notif.read
-                          ? "transparent"
-                          : "color-mix(in srgb, var(--color-primary-100) 40%, transparent)",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "0.75rem 1rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.25rem",
                         borderBottom: "1px solid var(--color-border)",
+                        backgroundColor: notif.read ? "transparent" : `${accent}08`,
+                        border: "none",
+                        borderBottom: "1px solid var(--color-border)",
+                        cursor: "pointer",
+                        transition: "background-color 0.12s",
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-muted)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = notif.read ? "transparent" : `${accent}08`)}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span
-                          className="text-xs font-semibold leading-snug"
-                          style={{ color: "var(--color-foreground)" }}
-                        >
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
+                        <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-foreground)", lineHeight: 1.4, display: "flex", alignItems: "center", gap: "0.375rem" }}>
                           {notif.title}
                           {!notif.read && (
-                            <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle" />
+                            <span style={{ display: "inline-block", height: 6, width: 6, borderRadius: "50%", backgroundColor: accent, flexShrink: 0 }} />
                           )}
                         </span>
-                        <span className="text-[10px] flex-shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
+                        <span style={{ fontSize: 10, flexShrink: 0, color: "var(--color-muted-foreground)", marginTop: 1 }}>
                           {formatTime(notif.createdAt)}
                         </span>
                       </div>
-                      <p className="text-xs leading-relaxed" style={{ color: "var(--color-muted-foreground)" }}>
+                      <p style={{ fontSize: 11, lineHeight: 1.5, color: "var(--color-muted-foreground)" }}>
                         {notif.message}
                       </p>
                     </button>
@@ -313,21 +420,64 @@ export default function Header({ onMenuClick }: HeaderProps) {
           )}
         </div>
 
-        <div className="hidden md:flex flex-col items-end">
-          <span
-            className="text-sm font-medium"
-            style={{ color: "var(--color-foreground)" }}
-          >
+        {/* Divider */}
+        <div style={{ width: 1, height: 24, backgroundColor: "var(--color-border)", margin: "0 0.25rem" }} />
+
+        {/* Avatar */}
+        <div
+          style={{
+            height: 32,
+            width: 32,
+            borderRadius: "50%",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            border: `1.5px solid ${accent}50`,
+            backgroundColor: `${accent}15`,
+          }}
+        >
+          {session?.profileImageUrl && !imgError ? (
+            <img
+              src={session.profileImageUrl}
+              alt=""
+              style={{ height: "100%", width: "100%", objectFit: "cover" }}
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: accent, userSelect: "none" }}>
+              {initial}
+            </span>
+          )}
+        </div>
+
+        {/* Name + role badge */}
+        <div className="hidden md:flex flex-col items-end" style={{ gap: "0.1rem" }}>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-foreground)", lineHeight: 1.2 }}>
             {session?.fullName || "User"}
           </span>
           <span
-            className="text-xs"
-            style={{ color: "var(--color-muted-foreground)" }}
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              padding: "1px 6px",
+              borderRadius: 999,
+              backgroundColor: `${accent}15`,
+              color: accent,
+              lineHeight: 1.6,
+            }}
           >
-            {session ? formatRole(session.role) : ""}
+            {roleLabel}
           </span>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </header>
   );
 }

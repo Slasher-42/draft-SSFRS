@@ -40,6 +40,36 @@
 
   --background: var(--color-background);
   --foreground: var(--color-foreground);
+
+  /* Elevation shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.07), 0 4px 8px rgba(0,0,0,0.04);
+  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+
+  /* Role accent: Provider (Blue) */
+  --accent-provider: #2563EB;
+  --accent-provider-light: #EFF6FF;
+  --accent-provider-muted: rgba(37,99,235,0.08);
+
+  /* Role accent: Worker (Purple) */
+  --accent-worker: #7C3AED;
+  --accent-worker-light: #F5F3FF;
+  --accent-worker-muted: rgba(124,58,237,0.08);
+
+  /* Role accent: Admin (Amber) */
+  --accent-admin: #D97706;
+  --accent-admin-light: #FFFBEB;
+  --accent-admin-muted: rgba(217,119,6,0.08);
+
+  /* Role accent: Evaluator (Teal) */
+  --accent-evaluator: #0D9488;
+  --accent-evaluator-light: #F0FDFA;
+  --accent-evaluator-muted: rgba(13,148,136,0.08);
+
+  /* Role accent: Refund Office (Emerald) */
+  --accent-refund: #059669;
+  --accent-refund-light: #ECFDF5;
+  --accent-refund-muted: rgba(5,150,105,0.08);
 }
 
 [data-theme="dark"] {
@@ -50,9 +80,21 @@
   --color-primary: #4D4D4D;
   --color-muted: #161B22;
   --color-muted-foreground: #8B949E;
+  --color-neutral-50: #0D1117;
+  --color-neutral-100: #161B22;
 
   --background: var(--color-background);
   --foreground: var(--color-foreground);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.2);
+  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+
+  --accent-provider-light: rgba(37,99,235,0.15);
+  --accent-worker-light: rgba(124,58,237,0.15);
+  --accent-admin-light: rgba(217,119,6,0.15);
+  --accent-evaluator-light: rgba(13,148,136,0.15);
+  --accent-refund-light: rgba(5,150,105,0.15);
 }
 
 @layer base {

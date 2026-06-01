@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,6 +29,8 @@ import {
   ScrollText,
   Scale,
   Landmark,
+  Globe,
+  LayoutDashboard,
 } from "lucide-react";
 import { authService } from "@/lib/authService";
 
@@ -50,6 +52,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "Messages", href: "/dashboard/provider/messages", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
         { label: "Contract", href: "/dashboard/provider/contract", icon: <FileSignature className="h-5 w-5 flex-shrink-0" /> },
         { label: "Account", href: "/dashboard/provider/account", icon: <Wallet className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Public Home", href: "/", icon: <Globe className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "WORKER":
       return [
@@ -63,6 +66,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "Messages", href: "/dashboard/worker/messages", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
         { label: "Contract", href: "/dashboard/worker/contract", icon: <FileSignature className="h-5 w-5 flex-shrink-0" /> },
         { label: "Account", href: "/dashboard/worker/account", icon: <Wallet className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Public Home", href: "/", icon: <Globe className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "EVALUATOR":
       return [
@@ -72,6 +76,7 @@ function getNavItems(role: string): NavItem[] {
         { label: "Justifications", href: "/dashboard/evaluator/justifications", icon: <Scale className="h-5 w-5 flex-shrink-0" /> },
         { label: "Claim Monitor", href: "/dashboard/evaluator/claim-monitor", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/evaluator/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Public Home", href: "/", icon: <Globe className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "REFUND_OFFICE":
       return [
@@ -81,10 +86,12 @@ function getNavItems(role: string): NavItem[] {
         { label: "Refund Action", href: "/dashboard/refund-office/refund-action", icon: <ClipboardCheck className="h-5 w-5 flex-shrink-0" /> },
         { label: "System Account", href: "/dashboard/refund-office/system-account", icon: <Landmark className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/refund-office/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Public Home", href: "/", icon: <Globe className="h-5 w-5 flex-shrink-0" /> },
       ];
     case "ADMIN":
       return [
         { label: "Dashboard", href: "/dashboard/admin", icon: <Home className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Home Controller", href: "/dashboard/admin/home-controller", icon: <LayoutDashboard className="h-5 w-5 flex-shrink-0" /> },
         { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="h-5 w-5 flex-shrink-0" /> },
         { label: "Projects", href: "/dashboard/admin/projects", icon: <Briefcase className="h-5 w-5 flex-shrink-0" /> },
         { label: "System Alumni", href: "/dashboard/admin/alumni", icon: <Award className="h-5 w-5 flex-shrink-0" /> },
@@ -92,11 +99,21 @@ function getNavItems(role: string): NavItem[] {
         { label: "Contract Validation", href: "/dashboard/admin/contracts", icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" /> },
         { label: "Audit Log", href: "/dashboard/admin/audit-log", icon: <ScrollText className="h-5 w-5 flex-shrink-0" /> },
         { label: "Messaging", href: "/dashboard/admin/messaging", icon: <MessageSquare className="h-5 w-5 flex-shrink-0" /> },
+        { label: "Public Home", href: "/", icon: <Globe className="h-5 w-5 flex-shrink-0" /> },
       ];
     default:
       return [];
   }
 }
+
+const ROOT_HREFS = [
+  "/",
+  "/dashboard/worker",
+  "/dashboard/provider",
+  "/dashboard/admin",
+  "/dashboard/evaluator",
+  "/dashboard/refund-office",
+];
 
 interface SidebarProps {
   collapsed: boolean;
@@ -118,11 +135,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     const load = () => {
       const s = authService.getSession();
       if (s) {
-        setSession({
-          fullName: s.fullName,
-          role: s.role,
-          profileImageUrl: s.profileImageUrl ?? null,
-        });
+        setSession({ fullName: s.fullName, role: s.role, profileImageUrl: s.profileImageUrl ?? null });
         setSidebarImgError(false);
       }
     };
@@ -135,7 +148,6 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     };
 
     window.addEventListener("profileImageUpdated", handleImageUpdate);
-
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);
@@ -145,88 +157,188 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     };
   }, []);
 
+  const accentColor = useMemo(() => {
+    switch (session?.role) {
+      case "PROVIDER":     return "#3B82F6";
+      case "WORKER":       return "#8B5CF6";
+      case "ADMIN":        return "#F59E0B";
+      case "EVALUATOR":    return "#14B8A6";
+      case "REFUND_OFFICE":return "#10B981";
+      default:             return "#6B7280";
+    }
+  }, [session?.role]);
+
+  const roleLabel = useMemo(() => {
+    switch (session?.role) {
+      case "PROVIDER":     return "Project Provider";
+      case "WORKER":       return "Worker";
+      case "ADMIN":        return "Administrator";
+      case "EVALUATOR":    return "Evaluator";
+      case "REFUND_OFFICE":return "Refund Office";
+      default:             return session?.role || "";
+    }
+  }, [session?.role]);
+
   const navItems = getNavItems(session?.role || "");
   const initial = session?.fullName?.charAt(0).toUpperCase() || "U";
-
-  const handleLogout = () => {
-    authService.logout();
-    router.push("/login");
-  };
+  const handleLogout = () => { authService.logout(); router.push("/login"); };
 
   return (
     <>
       {isMobile && !collapsed && (
         <div
-          className="fixed inset-0 z-30 bg-black/40"
+          className="fixed inset-0 z-30 bg-black/50"
+          style={{ backdropFilter: "blur(2px)" }}
           onClick={() => setCollapsed(true)}
         />
       )}
 
       <motion.aside
-        animate={{
-          width: collapsed ? 64 : 256,
-          x: isMobile && collapsed ? -256 : 0,
-        }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
+        animate={{ width: collapsed ? 64 : 256, x: isMobile && collapsed ? -256 : 0 }}
+        transition={{ duration: 0.22, ease: "easeInOut" }}
         className="fixed md:relative z-40 flex flex-col h-screen overflow-hidden"
         style={{
-          backgroundColor: "#1A1A1A",
-          borderRight: "1px solid #2A2A2A",
+          background: "linear-gradient(180deg, #111827 0%, #0C1220 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
           minWidth: collapsed ? 64 : 256,
         }}
       >
+        {/* ── Logo ── */}
         <div
-          className="flex items-center p-4 flex-shrink-0"
-          style={{ borderBottom: "1px solid #2A2A2A" }}
+          style={{
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            padding: "0.875rem 1rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.625rem",
+            flexShrink: 0,
+            justifyContent: collapsed ? "center" : "space-between",
+          }}
         >
-          {!collapsed && (
-            <span className="flex-1 text-white font-bold text-base tracking-tight">
-              SSFRS
-            </span>
-          )}
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                style={{ minWidth: 0 }}
+              >
+                <div style={{ color: "#fff", fontWeight: 800, fontSize: "0.875rem", lineHeight: 1.2, letterSpacing: "-0.01em" }}>SSFRS</div>
+                <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, lineHeight: 1.2, marginTop: 2 }}>
+                  Refund System
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="h-7 w-7 rounded flex items-center justify-center flex-shrink-0"
-            style={{ color: "rgba(255,255,255,0.6)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#ffffff")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+            style={{
+              height: 26,
+              width: 26,
+              borderRadius: 7,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              color: "rgba(255,255,255,0.3)",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              cursor: "pointer",
+              transition: "color 0.15s, background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "#ffffff";
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.3)";
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+            }}
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3">
-          <ul className="space-y-1">
+        {/* ── Nav ── */}
+        <nav className="flex-1 overflow-y-auto" style={{ padding: "1rem 0.5rem 0.5rem" }}>
+          {!collapsed && (
+            <p
+              style={{
+                paddingLeft: "0.75rem",
+                marginBottom: "0.5rem",
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.14em",
+                color: "rgba(255,255,255,0.2)",
+              }}
+            >
+              Menu
+            </p>
+          )}
+          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.125rem" }}>
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/dashboard/worker" && item.href !== "/dashboard/provider" && item.href !== "/dashboard/admin" && pathname.startsWith(item.href));
+              const isActive =
+                pathname === item.href ||
+                (!ROOT_HREFS.includes(item.href) && pathname.startsWith(item.href));
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    title={item.label}
-                    className="flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150"
+                    title={collapsed ? item.label : undefined}
                     style={{
-                      backgroundColor: isActive ? "#3D3D3D" : "transparent",
-                      color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
+                      display: "flex",
+                      alignItems: "center",
+                      borderRadius: 10,
+                      padding: "0.5625rem 0.75rem",
+                      fontSize: "0.8125rem",
+                      fontWeight: 500,
+                      textDecoration: "none",
+                      position: "relative",
+                      transition: "background-color 0.12s, color 0.12s",
+                      backgroundColor: isActive ? "rgba(255,255,255,0.09)" : "transparent",
+                      color: isActive ? "#ffffff" : "rgba(255,255,255,0.5)",
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.backgroundColor = "#2A2A2A";
-                        e.currentTarget.style.color = "#ffffff";
+                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                        e.currentTarget.style.color = "rgba(255,255,255,0.85)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                        e.currentTarget.style.color = "rgba(255,255,255,0.5)";
                       }
                     }}
                   >
-                    <span className={collapsed ? "mx-auto" : "mr-3"}>
+                    {/* Active left indicator */}
+                    {isActive && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          height: "60%",
+                          width: 3,
+                          borderRadius: "0 3px 3px 0",
+                          backgroundColor: accentColor,
+                        }}
+                      />
+                    )}
+                    <span
+                      style={{
+                        color: isActive ? accentColor : "inherit",
+                        marginRight: collapsed ? 0 : "0.75rem",
+                        marginLeft: collapsed ? "auto" : 0,
+                        marginRight: collapsed ? "auto" : "0.75rem",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
                       {item.icon}
                     </span>
                     <AnimatePresence>
@@ -248,47 +360,130 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
           </ul>
         </nav>
 
+        {/* ── User ── */}
         <div
-          className="flex-shrink-0 p-3"
-          style={{ borderTop: "1px solid #2A2A2A" }}
+          style={{
+            flexShrink: 0,
+            padding: "0.75rem",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+          }}
         >
           {collapsed ? (
-            <div className="flex justify-center">
-              <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#4A4A4A]">
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+              <div
+                style={{
+                  height: 32,
+                  width: 32,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: `1.5px solid ${accentColor}60`,
+                  backgroundColor: `${accentColor}20`,
+                  flexShrink: 0,
+                }}
+              >
                 {session?.profileImageUrl && !sidebarImgError ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={session.profileImageUrl} alt="" className="h-full w-full object-cover" onError={() => setSidebarImgError(true)} />
+                  <img
+                    src={session.profileImageUrl}
+                    alt=""
+                    style={{ height: "100%", width: "100%", objectFit: "cover" }}
+                    onError={() => setSidebarImgError(true)}
+                  />
                 ) : (
-                  <span className="text-white font-bold text-sm select-none">{initial}</span>
+                  <span style={{ color: accentColor, fontWeight: 700, fontSize: 12, userSelect: "none" }}>{initial}</span>
                 )}
               </div>
+              <button
+                onClick={handleLogout}
+                style={{
+                  height: 24,
+                  width: 24,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 6,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,0.25)",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
+                title="Log out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#4A4A4A] flex-shrink-0">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.625rem",
+                padding: "0.5rem 0.625rem",
+                borderRadius: 12,
+                backgroundColor: "rgba(255,255,255,0.04)",
+              }}
+            >
+              <div
+                style={{
+                  height: 32,
+                  width: 32,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: `1.5px solid ${accentColor}55`,
+                  backgroundColor: `${accentColor}18`,
+                  flexShrink: 0,
+                }}
+              >
                 {session?.profileImageUrl && !sidebarImgError ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={session.profileImageUrl} alt="" className="h-full w-full object-cover" onError={() => setSidebarImgError(true)} />
+                  <img
+                    src={session.profileImageUrl}
+                    alt=""
+                    style={{ height: "100%", width: "100%", objectFit: "cover" }}
+                    onError={() => setSidebarImgError(true)}
+                  />
                 ) : (
-                  <span className="text-white font-bold text-sm select-none">{initial}</span>
+                  <span style={{ color: accentColor, fontWeight: 700, fontSize: 12, userSelect: "none" }}>{initial}</span>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#ffffff", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {session?.fullName || "User"}
                 </p>
-                <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  {session?.role || ""}
+                <p style={{ fontSize: 10, fontWeight: 500, color: accentColor, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {roleLabel}
                 </p>
               </div>
               <button
                 onClick={handleLogout}
-                className="flex-shrink-0"
-                style={{ color: "rgba(255,255,255,0.5)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#ffffff")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+                style={{
+                  height: 28,
+                  width: 28,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,0.25)",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
+                title="Log out"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
               </button>
             </div>
           )}

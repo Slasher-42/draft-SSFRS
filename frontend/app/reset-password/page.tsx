@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Lock, Eye, EyeOff, CheckCircle, ArrowLeft } from "lucide-react";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { authService } from "@/lib/authService";
@@ -26,6 +26,77 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const ACCENT = "#2563EB";
+
+
+function inputStyle(hasError: boolean, extraPadding?: string): React.CSSProperties {
+  return {
+    width: "100%",
+    border: `1.5px solid ${hasError ? "#ef4444" : "var(--color-border)"}`,
+    borderRadius: 10,
+    padding: extraPadding ?? "0.65rem 0.875rem 0.65rem 2.5rem",
+    fontSize: "0.875rem",
+    backgroundColor: "var(--color-background)",
+    color: "var(--color-foreground)",
+    outline: "none",
+    transition: "border-color 0.15s, box-shadow 0.15s",
+  };
+}
+
+function onFocusInput(e: React.FocusEvent<HTMLInputElement>, hasError: boolean) {
+  e.currentTarget.style.borderColor = hasError ? "#ef4444" : ACCENT;
+  e.currentTarget.style.boxShadow = hasError
+    ? "0 0 0 3px rgba(239,68,68,0.10)"
+    : "0 0 0 3px rgba(37,99,235,0.10)";
+}
+
+function onBlurInput(e: React.FocusEvent<HTMLInputElement>, hasError: boolean) {
+  e.currentTarget.style.borderColor = hasError ? "#ef4444" : "var(--color-border)";
+  e.currentTarget.style.boxShadow = "none";
+}
+
+function LeftPanel() {
+  return (
+    <div
+      className="auth-left"
+      style={{
+        width: 420,
+        flexShrink: 0,
+        position: "sticky",
+        top: 0,
+        height: "100vh",
+        overflow: "hidden",
+        background: "linear-gradient(160deg, #0F172A 0%, #1A253D 100%)",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        padding: "2.5rem",
+      }}
+    >
+      <div style={{ position: "absolute", right: -60, top: -60, height: 280, width: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.12), transparent)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: -40, bottom: -40, height: 200, width: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.08), transparent)", pointerEvents: "none" }} />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div style={{ marginBottom: "3.5rem" }}>
+          <div style={{ color: "#fff", fontWeight: 800, fontSize: "1.125rem", lineHeight: 1.2, letterSpacing: "-0.02em" }}>SSFRS</div>
+          <div style={{ color: "rgba(255,255,255,0.38)", fontSize: 12, marginTop: 3 }}>Service Failure Refund System</div>
+        </div>
+
+        <h2 style={{ color: "#fff", fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.25, marginBottom: "0.875rem" }}>
+          Manage service failures with confidence.
+        </h2>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.875rem", lineHeight: 1.75 }}>
+          A complete platform for tracking service claims, evaluating worker performance, and processing refunds.
+        </p>
+
+      </div>
+
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", position: "relative", zIndex: 1 }}>
+        © 2026 SSFRS · All rights reserved
+      </p>
+    </div>
+  );
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,28 +107,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
-
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4"
-        style={{ backgroundColor: "var(--color-neutral-50)" }}>
-        <div className="rounded-xl border p-8 w-full max-w-md text-center"
-          style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}>
-          <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-            Invalid or missing reset token.{" "}
-            <a href="/forgot-password" style={{ color: "var(--color-primary)" }}>
-              Request a new link
-            </a>
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
@@ -74,148 +124,229 @@ export default function ResetPasswordPage() {
     }
   };
 
-  return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: "var(--color-neutral-50)" }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="w-full max-w-md"
-      >
-        <div
-          className="rounded-xl border p-8"
-          style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
-          }}
-        >
-          {done ? (
-            <div className="text-center space-y-4">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--color-primary-50, #eff6ff)" }}>
-                <CheckCircle className="h-7 w-7" style={{ color: "var(--color-primary)" }} />
-              </div>
-              <h2 className="text-xl font-semibold" style={{ color: "var(--color-primary-800)" }}>
-                Password updated
-              </h2>
-              <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                Your password has been reset. You can now sign in with your new password.
+  /* ── Invalid token ── */
+  if (!token) {
+    return (
+      <>
+        <style>{`
+          .auth-left { display: none; }
+          .auth-mobile-logo { display: flex; }
+          @media (min-width: 768px) { .auth-left { display: flex; } .auth-mobile-logo { display: none; } }
+        `}</style>
+        <div style={{ display: "flex", minHeight: "100vh" }}>
+          <LeftPanel />
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2.5rem 1.5rem", backgroundColor: "var(--color-neutral-50)" }}>
+            <div style={{
+              maxWidth: 420, width: "100%",
+              backgroundColor: "var(--color-card)", borderRadius: 18, padding: "2.5rem",
+              boxShadow: "var(--shadow-elevated)", border: "1px solid var(--color-border)",
+              textAlign: "center",
+            }}>
+              <p style={{ fontSize: "0.875rem", color: "var(--color-muted-foreground)" }}>
+                Invalid or missing reset token.{" "}
+                <a href="/forgot-password" style={{ color: ACCENT, fontWeight: 700, textDecoration: "none" }}>
+                  Request a new link
+                </a>
               </p>
-              <button
-                onClick={() => router.push("/login")}
-                className="mt-2 w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition"
-                style={{ backgroundColor: "var(--color-primary)" }}
-              >
-                Go to Sign In
-              </button>
             </div>
-          ) : (
-            <>
-              <div className="mb-8 text-center">
-                <h2 className="text-xl font-semibold mb-1" style={{ color: "var(--color-primary-800)" }}>
-                  Set new password
-                </h2>
-                <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                  Choose a strong password for your account.
-                </p>
-              </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <Lock
-                      className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-                      style={{ color: "var(--color-neutral-400)" }}
-                    />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      {...register("newPassword")}
-                      placeholder="••••••••"
-                      className="w-full rounded-lg border px-3 py-2 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 transition"
-                      style={{
-                        borderColor: errors.newPassword ? "#ef4444" : "var(--color-border)",
-                        backgroundColor: "var(--color-background)",
-                        color: "var(--color-foreground)",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: "var(--color-neutral-400)" }}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {errors.newPassword && (
-                    <p className="text-xs" style={{ color: "#ef4444" }}>
-                      {errors.newPassword.message}
-                    </p>
-                  )}
+  return (
+    <>
+      <style>{`
+        .auth-left { display: none; }
+        .auth-mobile-logo { display: flex; }
+        @media (min-width: 768px) { .auth-left { display: flex; } .auth-mobile-logo { display: none; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+
+      <div style={{ display: "flex", minHeight: "100vh" }}>
+        <LeftPanel />
+
+        {/* ── Right panel ── */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          padding: "2.5rem 1.5rem",
+          backgroundColor: "var(--color-neutral-50)",
+        }}>
+          {/* Mobile logo */}
+          <div className="auth-mobile-logo" style={{ alignItems: "center", marginBottom: "1.75rem" }}>
+            <span style={{ color: "var(--color-foreground)", fontWeight: 800, fontSize: "1.125rem", letterSpacing: "-0.02em" }}>SSFRS</span>
+          </div>
+
+          {/* Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28 }}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              backgroundColor: "var(--color-card)",
+              borderRadius: 18,
+              padding: "2.5rem",
+              boxShadow: "var(--shadow-elevated)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            {done ? (
+              /* ── Success ── */
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.25 }}
+                style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}
+              >
+                <div style={{
+                  height: 56, width: 56, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #DCFCE7, #BBF7D0)",
+                  border: "1.5px solid #86EFAC",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 20px rgba(34,197,94,0.2)",
+                }}>
+                  <CheckCircle style={{ width: 26, height: 26, color: "#22c55e" }} />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <Lock
-                      className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-                      style={{ color: "var(--color-neutral-400)" }}
-                    />
-                    <input
-                      type={showConfirm ? "text" : "password"}
-                      {...register("confirmPassword")}
-                      placeholder="••••••••"
-                      className="w-full rounded-lg border px-3 py-2 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 transition"
-                      style={{
-                        borderColor: errors.confirmPassword ? "#ef4444" : "var(--color-border)",
-                        backgroundColor: "var(--color-background)",
-                        color: "var(--color-foreground)",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirm(!showConfirm)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: "var(--color-neutral-400)" }}
-                    >
-                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {errors.confirmPassword && (
-                    <p className="text-xs" style={{ color: "#ef4444" }}>
-                      {errors.confirmPassword.message}
-                    </p>
-                  )}
+                <div>
+                  <h3 style={{ color: "var(--color-foreground)", fontWeight: 800, marginBottom: "0.375rem" }}>
+                    Password updated
+                  </h3>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-muted-foreground)", lineHeight: 1.65 }}>
+                    Your password has been reset. You can now sign in with your new credentials.
+                  </p>
                 </div>
 
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition"
-                  style={{ backgroundColor: "var(--color-primary)" }}
+                  onClick={() => router.push("/login")}
+                  style={{
+                    width: "100%", padding: "0.72rem 1rem", borderRadius: 10, marginTop: "0.5rem",
+                    background: "linear-gradient(135deg, #1E293B 0%, #334155 100%)",
+                    color: "#fff", fontWeight: 700, fontSize: "0.875rem", border: "none",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                  }}
                 >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      Updating…
-                    </span>
-                  ) : (
-                    "Reset Password"
-                  )}
+                  Go to Sign In
                 </button>
-              </form>
-            </>
-          )}
+              </motion.div>
+            ) : (
+              /* ── Form ── */
+              <>
+                <a
+                  href="/login"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.375rem",
+                    fontSize: "0.8125rem", fontWeight: 500, color: "var(--color-muted-foreground)",
+                    textDecoration: "none", marginBottom: "1.75rem",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-foreground)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-muted-foreground)")}
+                >
+                  <ArrowLeft style={{ width: 14, height: 14 }} />
+                  Back to sign in
+                </a>
+
+                <div style={{ marginBottom: "2rem" }}>
+                  <h3 style={{ color: "var(--color-foreground)", fontWeight: 800, marginBottom: "0.375rem" }}>
+                    Set a new password
+                  </h3>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-muted-foreground)", lineHeight: 1.6 }}>
+                    Choose a strong, unique password for your account.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                  {/* New Password */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                    <label style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-foreground)" }}>
+                      New Password
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <Lock style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--color-neutral-400)", pointerEvents: "none" }} />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        {...register("newPassword")}
+                        placeholder="••••••••"
+                        style={inputStyle(!!errors.newPassword, "0.65rem 2.5rem 0.65rem 2.5rem")}
+                        onFocus={(e) => onFocusInput(e, !!errors.newPassword)}
+                        onBlur={(e) => onBlurInput(e, !!errors.newPassword)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-neutral-400)", display: "flex" }}
+                      >
+                        {showPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                      </button>
+                    </div>
+                    {errors.newPassword && (
+                      <p style={{ fontSize: "0.75rem", color: "#ef4444" }}>{errors.newPassword.message}</p>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                    <label style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-foreground)" }}>
+                      Confirm Password
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <Lock style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--color-neutral-400)", pointerEvents: "none" }} />
+                      <input
+                        type={showConfirm ? "text" : "password"}
+                        {...register("confirmPassword")}
+                        placeholder="••••••••"
+                        style={inputStyle(!!errors.confirmPassword, "0.65rem 2.5rem 0.65rem 2.5rem")}
+                        onFocus={(e) => onFocusInput(e, !!errors.confirmPassword)}
+                        onBlur={(e) => onBlurInput(e, !!errors.confirmPassword)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm(!showConfirm)}
+                        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-neutral-400)", display: "flex" }}
+                      >
+                        {showConfirm ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p style={{ fontSize: "0.75rem", color: "#ef4444" }}>{errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      width: "100%", padding: "0.72rem 1rem", borderRadius: 10, marginTop: "0.25rem",
+                      background: loading ? "var(--color-neutral-300)" : "linear-gradient(135deg, #1E293B 0%, #334155 100%)",
+                      color: "#fff", fontWeight: 700, fontSize: "0.875rem", border: "none",
+                      cursor: loading ? "not-allowed" : "pointer", display: "flex",
+                      alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                      transition: "opacity 0.15s",
+                    }}
+                    onMouseEnter={(e) => { if (!loading) (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                  >
+                    {loading ? (
+                      <>
+                        <span style={{ width: 15, height: 15, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+                        Updating…
+                      </>
+                    ) : "Reset Password"}
+                  </button>
+                </form>
+              </>
+            )}
+          </motion.div>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </>
   );
 }

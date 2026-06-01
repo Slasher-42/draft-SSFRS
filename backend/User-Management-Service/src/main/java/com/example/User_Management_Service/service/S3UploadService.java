@@ -32,6 +32,12 @@ public class S3UploadService {
             "image/jpeg", "image/png", "image/gif", "image/webp"
     );
 
+    private static final long MAX_VIDEO_SIZE_BYTES = 200L * 1024 * 1024;
+    private static final Set<String> ALLOWED_VIDEO_TYPES = Set.of(
+            "video/mp4", "video/webm", "video/quicktime",
+            "video/x-msvideo", "video/x-matroska", "video/mpeg"
+    );
+
     public String uploadProfileImage(String userId, MultipartFile file) {
         validateFile(file);
 
@@ -50,6 +56,43 @@ public class S3UploadService {
             );
         } catch (IOException e) {
             throw new RuntimeException("Failed to read uploaded file.", e);
+        }
+
+        return key;
+    }
+
+    /**
+     * Upload a background video (MP4, WebM, MOV, AVI …) to the home-videos/ prefix.
+     * Returns the S3 key (not the URL) so callers can generate fresh presigned URLs.
+     */
+    public String uploadHomeVideo(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Video file must not be empty.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_VIDEO_TYPES.contains(contentType)) {
+            throw new IllegalArgumentException(
+                    "Only MP4, WebM, MOV, AVI and MKV video files are allowed.");
+        }
+        if (file.getSize() > MAX_VIDEO_SIZE_BYTES) {
+            throw new IllegalArgumentException("Video file size must not exceed 200 MB.");
+        }
+
+        String extension = getExtension(file.getOriginalFilename());
+        String key = "home-videos/" + UUID.randomUUID() + "." + extension;
+
+        try {
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .contentType(contentType)
+                            .contentLength(file.getSize())
+                            .build(),
+                    RequestBody.fromBytes(file.getBytes())
+            );
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload video file.", e);
         }
 
         return key;
