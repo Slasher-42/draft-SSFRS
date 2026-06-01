@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -61,6 +61,14 @@ export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+
+  useEffect(() => {
+    fetch("/api/homepage")
+      .then((r) => r.json())
+      .then((d) => setVideoUrl(d?.hero?.videoUrl || ""))
+      .catch(() => {});
+  }, []);
 
   const {
     register,
@@ -106,7 +114,7 @@ export default function RegisterPage() {
         <div
           className="auth-left"
           style={{
-            width: 420,
+            width: "50%",
             flexShrink: 0,
             position: "sticky",
             top: 0,
@@ -118,10 +126,15 @@ export default function RegisterPage() {
             padding: "2.5rem",
           }}
         >
-          <div style={{ position: "absolute", right: -60, top: -60, height: 280, width: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.12), transparent)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: -40, bottom: -40, height: 200, width: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.08), transparent)", pointerEvents: "none" }} />
+          {videoUrl && (
+            <video autoPlay muted loop playsInline src={videoUrl}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+          )}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,18,38,0.55) 0%, rgba(10,18,38,0.70) 60%, rgba(10,18,38,0.88) 100%)", zIndex: 1 }} />
+          <div style={{ position: "absolute", right: -60, top: -60, height: 280, width: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.12), transparent)", pointerEvents: "none", zIndex: 2 }} />
+          <div style={{ position: "absolute", left: -40, bottom: -40, height: 200, width: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.08), transparent)", pointerEvents: "none", zIndex: 2 }} />
 
-          <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ position: "relative", zIndex: 3 }}>
             <div style={{ marginBottom: "3.5rem" }}>
               <div style={{ color: "#fff", fontWeight: 800, fontSize: "1.125rem", lineHeight: 1.2, letterSpacing: "-0.02em" }}>SSFRS</div>
               <div style={{ color: "rgba(255,255,255,0.38)", fontSize: 12, marginTop: 3 }}>Service Failure Refund System</div>
@@ -136,7 +149,7 @@ export default function RegisterPage() {
 
           </div>
 
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", position: "relative", zIndex: 1 }}>
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", position: "relative", zIndex: 3 }}>
             © 2026 SSFRS · All rights reserved
           </p>
         </div>
