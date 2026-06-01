@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { usePathname } from "@/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
   User,
@@ -195,14 +194,15 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         />
       )}
 
-      <motion.aside
-        animate={{ width: collapsed ? 64 : 256, x: isMobile && collapsed ? -256 : 0 }}
-        transition={{ duration: 0.22, ease: "easeInOut" }}
+      <aside
         className="fixed md:relative z-40 flex flex-col h-screen overflow-hidden"
         style={{
           background: "linear-gradient(180deg, #111827 0%, #0C1220 100%)",
           borderRight: "1px solid rgba(255,255,255,0.06)",
+          width: collapsed ? 64 : 256,
           minWidth: collapsed ? 64 : 256,
+          transform: isMobile && collapsed ? "translateX(-256px)" : "translateX(0)",
+          transition: "width 0.22s ease-in-out, min-width 0.22s ease-in-out, transform 0.22s ease-in-out",
         }}
       >
         {/* ── Logo ── */}
@@ -217,22 +217,21 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
             justifyContent: collapsed ? "center" : "space-between",
           }}
         >
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                style={{ minWidth: 0 }}
-              >
-                <div style={{ color: "#fff", fontWeight: 800, fontSize: "0.875rem", lineHeight: 1.2, letterSpacing: "-0.01em" }}>SSFRS</div>
-                <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, lineHeight: 1.2, marginTop: 2 }}>
-                  {t("refundSystem")}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div
+            style={{
+              minWidth: 0,
+              opacity: collapsed ? 0 : 1,
+              transition: "opacity 0.15s",
+              overflow: "hidden",
+              width: collapsed ? 0 : "auto",
+              pointerEvents: collapsed ? "none" : "auto",
+            }}
+          >
+            <div style={{ color: "#fff", fontWeight: 800, fontSize: "0.875rem", lineHeight: 1.2, letterSpacing: "-0.01em" }}>SSFRS</div>
+            <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, lineHeight: 1.2, marginTop: 2 }}>
+              {t("refundSystem")}
+            </div>
+          </div>
 
           <button
             onClick={() => setCollapsed(!collapsed)}
@@ -342,18 +341,17 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                     >
                       {item.icon}
                     </span>
-                    <AnimatePresence>
-                      {!collapsed && (
-                        <motion.span
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          {item.label}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
+                    <span
+                      style={{
+                        opacity: collapsed ? 0 : 1,
+                        transition: "opacity 0.15s",
+                        overflow: "hidden",
+                        whiteSpace: "nowrap",
+                        maxWidth: collapsed ? 0 : 200,
+                      }}
+                    >
+                      {item.label}
+                    </span>
                   </LocaleLink>
                 </li>
               );
@@ -489,7 +487,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
             </div>
           )}
         </div>
-      </motion.aside>
+      </aside>
     </>
   );
 }

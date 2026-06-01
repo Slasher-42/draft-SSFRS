@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
@@ -23,13 +22,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           className="flex-1 overflow-auto p-4 md:p-6 lg:p-8"
           style={{ backgroundColor: "var(--color-neutral-50)" }}
         >
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-          >
+          <div style={{ animation: "pageIn 0.2s ease-out" }}>
             {children}
-          </motion.div>
+          </div>
+          <style>{`@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
         </main>
       </div>
     </div>

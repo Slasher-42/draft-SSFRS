@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const revalidate = 300; // cache this route for 5 minutes
+
 const BACKEND = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 
 export interface FeaturedUser {
@@ -115,7 +117,7 @@ export const DEFAULT_SETTINGS: HomepageSettings = {
 async function fetchUsersFromBackend(role: string): Promise<FeaturedUser[]> {
   try {
     const res = await fetch(`${BACKEND}/api/home/users?role=${role}`, {
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
     if (!res.ok) return [];
     return await res.json();
@@ -130,7 +132,7 @@ export async function GET() {
   let settings: HomepageSettings = { ...DEFAULT_SETTINGS };
 
   try {
-    const res = await fetch(`${BACKEND}/api/home/settings`, { cache: "no-store" });
+    const res = await fetch(`${BACKEND}/api/home/settings`, { next: { revalidate: 300 } });
     if (res.ok) {
       const saved: HomepageSettings = await res.json();
       settings = saved;
