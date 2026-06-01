@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
+    "warm": "node scripts/warmup.js",
     "demo": "next build && next start",
     "build": "next build",
     "start": "next start",
